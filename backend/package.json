@@ -19,6 +19,9 @@
     "test:image-ranker": "jest --testPathPattern=image-ranker",
     "test:review-state": "jest --testPathPattern=review-state",
     "test:audit-log": "jest --testPathPattern=audit-log",
+    "test:logger": "jest --testPathPattern=logger",
+    "test:error-handler": "jest --testPathPattern=error-handler",
+    "test:ai-suggester": "jest --testPathPattern=ai-text-suggester",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write src/"
   },
