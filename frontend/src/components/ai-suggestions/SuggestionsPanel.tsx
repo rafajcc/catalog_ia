@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { getApiService } from '../../services/api-service';
 import { getErrorMessage } from '../../utils/download';
+import { useI18n } from '../../i18n';
 import { AIContentField, AIProviderName, AIResponse } from '../../types';
 
 interface Message {
@@ -8,17 +9,18 @@ interface Message {
   text: string;
 }
 
-const FIELDS: Array<{ value: AIContentField; label: string }> = [
-  { value: 'name', label: 'Name' },
-  { value: 'description_short', label: 'Short description' },
-  { value: 'description', label: 'Description' },
-  { value: 'meta_title', label: 'Meta title' },
-  { value: 'meta_description', label: 'Meta description' },
-  { value: 'link_rewrite', label: 'Link rewrite' }
+const FIELDS: Array<{ value: AIContentField; key: string }> = [
+  { value: 'name', key: 'ai.fieldName' },
+  { value: 'description_short', key: 'ai.fieldShortDescription' },
+  { value: 'description', key: 'ai.fieldDescription' },
+  { value: 'meta_title', key: 'ai.fieldMetaTitle' },
+  { value: 'meta_description', key: 'ai.fieldMetaDescription' },
+  { value: 'link_rewrite', key: 'ai.fieldLinkRewrite' }
 ];
 
 export default function SuggestionsPanel({ dataId }: { dataId: string }) {
   const api = getApiService();
+  const { t } = useI18n();
   const [provider, setProvider] = useState<AIProviderName>('mock');
   const [language, setLanguage] = useState('es');
   const [enabledFields, setEnabledFields] = useState<AIContentField[]>(['name', 'description']);
@@ -32,14 +34,14 @@ export default function SuggestionsPanel({ dataId }: { dataId: string }) {
     );
   }
 
-  async function run(action: () => Promise<{ data?: any }>, successText: string) {
+  async function run(action: () => Promise<{ data?: any }>, successKey: string) {
     setBusy(true);
     setMessage(null);
     try {
       const result = await action();
       const items = Array.isArray(result.data) ? result.data : [];
       setSuggestions(items);
-      setMessage({ kind: 'success', text: `${successText} (${items.length} suggestions)` });
+      setMessage({ kind: 'success', text: `${t(successKey)} (${t('ai.suggestions', { count: items.length })})` });
     } catch (error) {
       setMessage({ kind: 'error', text: getErrorMessage(error) });
     } finally {
@@ -49,13 +51,13 @@ export default function SuggestionsPanel({ dataId }: { dataId: string }) {
 
   return (
     <section className="card">
-      <h2>AI suggestions</h2>
+      <h2>{t('ai.title')}</h2>
       <p>
-        Data id: <strong>{dataId}</strong>
+        {t('common.dataId', { id: dataId })}
       </p>
 
       <div className="field">
-        <label htmlFor="ai-sug-provider">Provider</label>
+        <label htmlFor="ai-sug-provider">{t('ai.provider')}</label>
         <select
           id="ai-sug-provider"
           value={provider}
@@ -68,7 +70,7 @@ export default function SuggestionsPanel({ dataId }: { dataId: string }) {
       </div>
 
       <div className="field">
-        <label htmlFor="ai-sug-language">Language</label>
+        <label htmlFor="ai-sug-language">{t('ai.language')}</label>
         <input
           id="ai-sug-language"
           type="text"
@@ -79,7 +81,7 @@ export default function SuggestionsPanel({ dataId }: { dataId: string }) {
       </div>
 
       <div className="field">
-        <span>Fields</span>
+        <span>{t('ai.fields')}</span>
         {FIELDS.map((field) => (
           <label key={field.value} style={{ display: 'block', marginLeft: '0.25rem' }}>
             <input
@@ -88,7 +90,7 @@ export default function SuggestionsPanel({ dataId }: { dataId: string }) {
               disabled={busy}
               onChange={() => toggleField(field.value)}
             />
-            {field.label}
+            {t(field.key)}
           </label>
         ))}
       </div>
@@ -100,28 +102,28 @@ export default function SuggestionsPanel({ dataId }: { dataId: string }) {
         onClick={() =>
           run(
             () => api.generateTextSuggestions(dataId, { provider, language, enabled_fields: enabledFields }),
-            'Suggestions generated'
+            'ai.generated'
           )
         }
       >
-        Generate suggestions
+        {t('ai.generateButton')}
       </button>
       <button
         type="button"
         className="btn"
         disabled={busy}
-        onClick={() => run(() => api.getTextSuggestions(dataId), 'Suggestions loaded')}
+        onClick={() => run(() => api.getTextSuggestions(dataId), 'ai.loaded')}
       >
-        Load suggestions
+        {t('ai.loadButton')}
       </button>
 
       {suggestions.length > 0 && (
         <table className="data">
           <thead>
             <tr>
-              <th>Field</th>
-              <th>Suggested value</th>
-              <th>Confidence</th>
+              <th>{t('ai.field')}</th>
+              <th>{t('ai.suggestedValue')}</th>
+              <th>{t('ai.confidence')}</th>
             </tr>
           </thead>
           <tbody>

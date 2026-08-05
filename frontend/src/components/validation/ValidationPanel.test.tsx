@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import { renderWithI18n } from '../../test-utils';
 import userEvent from '@testing-library/user-event';
 import ValidationPanel from './ValidationPanel';
 
@@ -31,7 +32,7 @@ describe('ValidationPanel', () => {
 
   it('validates products and renders the summary table', async () => {
     mockApi.validateProducts.mockResolvedValue({ success: true, data: { products } });
-    render(<ValidationPanel dataId="d1" />);
+    renderWithI18n(<ValidationPanel dataId="d1" />, 'en');
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Validate products' }));
@@ -47,7 +48,7 @@ describe('ValidationPanel', () => {
 
   it('loads existing results', async () => {
     mockApi.getValidationResults.mockResolvedValue({ success: true, data: { products } });
-    render(<ValidationPanel dataId="d1" />);
+    renderWithI18n(<ValidationPanel dataId="d1" />, 'en');
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Load results' }));
@@ -58,7 +59,7 @@ describe('ValidationPanel', () => {
 
   it('shows an error when validation fails', async () => {
     mockApi.validateProducts.mockRejectedValue(new Error('validation crashed'));
-    render(<ValidationPanel dataId="d1" />);
+    renderWithI18n(<ValidationPanel dataId="d1" />, 'en');
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Validate products' }));
@@ -66,3 +67,4 @@ describe('ValidationPanel', () => {
     expect(await screen.findByText('validation crashed')).toBeInTheDocument();
   });
 });
+

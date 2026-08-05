@@ -1,6 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import DashboardPage from './DashboardPage';
+import { renderWithI18n } from '../../test-utils';
 
 var mockApi: any;
 
@@ -35,23 +36,23 @@ describe('DashboardPage', () => {
   });
 
   it('shows the system status in the header', async () => {
-    render(<DashboardPage />);
+    renderWithI18n(<DashboardPage />, 'en');
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Online'));
   });
 
   it('shows Offline when the status request fails', async () => {
     mockApi.getSystemStatus.mockRejectedValue(new Error('down'));
-    render(<DashboardPage />);
+    renderWithI18n(<DashboardPage />, 'en');
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Offline'));
   });
 
   it('renders the upload section by default', () => {
-    render(<DashboardPage />);
+    renderWithI18n(<DashboardPage />, 'en');
     expect(screen.getByText('Data upload')).toBeInTheDocument();
   });
 
   it('blocks data steps until a CSV has been uploaded', async () => {
-    render(<DashboardPage />);
+    renderWithI18n(<DashboardPage />, 'en');
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Validation' }));
@@ -66,7 +67,7 @@ describe('DashboardPage', () => {
       success: true,
       data: { products: [{ id: 'p1', name: 'Alpha', validation_errors: [] }] }
     });
-    render(<DashboardPage />);
+    renderWithI18n(<DashboardPage />, 'en');
 
     const user = userEvent.setup();
     await user.upload(screen.getByLabelText(/Product catalog \(CSV\)/), new File(['a,b'], 'p.csv'));

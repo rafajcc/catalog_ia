@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import { renderWithI18n } from '../../test-utils';
 import userEvent from '@testing-library/user-event';
 import SuggestionsPanel from './SuggestionsPanel';
 
@@ -28,7 +29,7 @@ describe('SuggestionsPanel', () => {
         }
       ]
     });
-    render(<SuggestionsPanel dataId="d1" />);
+    renderWithI18n(<SuggestionsPanel dataId="d1" />, 'en');
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Generate suggestions' }));
@@ -47,7 +48,7 @@ describe('SuggestionsPanel', () => {
 
   it('respects the field checkboxes when generating', async () => {
     mockApi.generateTextSuggestions.mockResolvedValue({ success: true, data: [] });
-    render(<SuggestionsPanel dataId="d1" />);
+    renderWithI18n(<SuggestionsPanel dataId="d1" />, 'en');
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('checkbox', { name: 'Name' }));
@@ -64,7 +65,7 @@ describe('SuggestionsPanel', () => {
 
   it('loads existing suggestions', async () => {
     mockApi.getTextSuggestions.mockResolvedValue({ success: true, data: [] });
-    render(<SuggestionsPanel dataId="d1" />);
+    renderWithI18n(<SuggestionsPanel dataId="d1" />, 'en');
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Load suggestions' }));
@@ -75,7 +76,7 @@ describe('SuggestionsPanel', () => {
 
   it('shows an error when generation fails', async () => {
     mockApi.generateTextSuggestions.mockRejectedValue(new Error('ai quota exceeded'));
-    render(<SuggestionsPanel dataId="d1" />);
+    renderWithI18n(<SuggestionsPanel dataId="d1" />, 'en');
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Generate suggestions' }));
@@ -83,3 +84,4 @@ describe('SuggestionsPanel', () => {
     expect(await screen.findByText('ai quota exceeded')).toBeInTheDocument();
   });
 });
+

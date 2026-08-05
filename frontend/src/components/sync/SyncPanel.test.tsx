@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import { renderWithI18n } from '../../test-utils';
 import userEvent from '@testing-library/user-event';
 import SyncPanel from './SyncPanel';
 
@@ -23,7 +24,7 @@ describe('SyncPanel', () => {
       session: { id: 's1', status: 'pending', dry_run: false, config: { batch_size: 10 }, plan: {} }
     });
     mockApi.startSync.mockResolvedValue({ success: true });
-    render(<SyncPanel dataId="d1" />);
+    renderWithI18n(<SyncPanel dataId="d1" />, 'en');
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Create session' }));
@@ -51,7 +52,7 @@ describe('SyncPanel', () => {
         { operation: 'update_product', status: 'failed', product_id: 'p2', retry_count: 1 }
       ]
     });
-    render(<SyncPanel dataId="d1" />);
+    renderWithI18n(<SyncPanel dataId="d1" />, 'en');
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Create session' }));
@@ -64,7 +65,7 @@ describe('SyncPanel', () => {
 
   it('shows an error when creating the session fails', async () => {
     mockApi.createSyncSession.mockRejectedValue(new Error('no data available'));
-    render(<SyncPanel dataId="d1" />);
+    renderWithI18n(<SyncPanel dataId="d1" />, 'en');
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Create session' }));
@@ -72,3 +73,4 @@ describe('SyncPanel', () => {
     expect(await screen.findByText('no data available')).toBeInTheDocument();
   });
 });
+

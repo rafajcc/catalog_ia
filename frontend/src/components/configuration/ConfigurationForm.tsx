@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getApiService } from '../../services/api-service';
 import { getErrorMessage } from '../../utils/download';
+import { useI18n } from '../../i18n';
 import { AIProviderName } from '../../types';
 
 interface Message {
@@ -17,6 +18,7 @@ const AI_PROVIDERS: Array<{ value: AIProviderName; label: string }> = [
 
 export default function ConfigurationForm() {
   const api = getApiService();
+  const { t } = useI18n();
   const [baseUrl, setBaseUrl] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [version, setVersion] = useState('1.7');
@@ -73,14 +75,14 @@ export default function ConfigurationForm() {
   async function handleTestPrestashop() {
     await run(
       () => api.testPrestashopConnection({ base_url: baseUrl, api_key: apiKey, version, language_id: languageId }),
-      'PrestaShop connection OK'
+      t('config.prestashopOk')
     );
   }
 
   async function handleTestAI() {
     await run(
       () => api.testAIConnection({ provider: aiProvider, model: aiModel, api_key: aiKey, language: aiLanguage, enabled_fields: ['name'] }),
-      'AI connection OK'
+      t('config.aiOk')
     );
   }
 
@@ -91,28 +93,28 @@ export default function ConfigurationForm() {
           prestashop: { base_url: baseUrl, api_key: apiKey, version, language_id: languageId },
           ai: { provider: aiProvider, model: aiModel, api_key: aiKey, language: aiLanguage, enabled_fields: ['name'] }
         }),
-      'Configuration saved'
+      t('config.saved')
     );
   }
 
   return (
     <section className="card">
-      <h2>Configuration</h2>
+      <h2>{t('config.title')}</h2>
 
-      <h3>PrestaShop</h3>
+      <h3>{t('config.prestashopSection')}</h3>
       <div className="field">
-        <label htmlFor="ps-base-url">Base URL</label>
+        <label htmlFor="ps-base-url">{t('config.baseUrl')}</label>
         <input
           id="ps-base-url"
           type="text"
           value={baseUrl}
           disabled={busy}
-          placeholder="https://shop.example.com"
+          placeholder={t('config.baseUrlPlaceholder')}
           onChange={(event) => setBaseUrl(event.target.value)}
         />
       </div>
       <div className="field">
-        <label htmlFor="ps-api-key">PrestaShop API key</label>
+        <label htmlFor="ps-api-key">{t('config.psApiKey')}</label>
         <input
           id="ps-api-key"
           type="password"
@@ -122,7 +124,7 @@ export default function ConfigurationForm() {
         />
       </div>
       <div className="field">
-        <label htmlFor="ps-version">Version</label>
+        <label htmlFor="ps-version">{t('config.version')}</label>
         <input
           id="ps-version"
           type="text"
@@ -132,7 +134,7 @@ export default function ConfigurationForm() {
         />
       </div>
       <div className="field">
-        <label htmlFor="ps-language">Language ID</label>
+        <label htmlFor="ps-language">{t('config.languageId')}</label>
         <input
           id="ps-language"
           type="number"
@@ -142,12 +144,12 @@ export default function ConfigurationForm() {
         />
       </div>
       <button type="button" className="btn" disabled={busy} onClick={handleTestPrestashop}>
-        Test PrestaShop connection
+        {t('config.testPrestashop')}
       </button>
 
-      <h3>AI content</h3>
+      <h3>{t('config.aiSection')}</h3>
       <div className="field">
-        <label htmlFor="ai-provider">Provider</label>
+        <label htmlFor="ai-provider">{t('config.provider')}</label>
         <select
           id="ai-provider"
           value={aiProvider}
@@ -162,7 +164,7 @@ export default function ConfigurationForm() {
         </select>
       </div>
       <div className="field">
-        <label htmlFor="ai-model">Model</label>
+        <label htmlFor="ai-model">{t('config.model')}</label>
         <input
           id="ai-model"
           type="text"
@@ -172,7 +174,7 @@ export default function ConfigurationForm() {
         />
       </div>
       <div className="field">
-        <label htmlFor="ai-language">Language</label>
+        <label htmlFor="ai-language">{t('config.aiLanguage')}</label>
         <input
           id="ai-language"
           type="text"
@@ -182,7 +184,7 @@ export default function ConfigurationForm() {
         />
       </div>
       <div className="field">
-        <label htmlFor="ai-key">AI API key</label>
+        <label htmlFor="ai-key">{t('config.aiApiKey')}</label>
         <input
           id="ai-key"
           type="password"
@@ -192,12 +194,12 @@ export default function ConfigurationForm() {
         />
       </div>
       <button type="button" className="btn" disabled={busy} onClick={handleTestAI}>
-        Test AI connection
+        {t('config.testAi')}
       </button>
 
       <div style={{ marginTop: '0.75rem' }}>
         <button type="button" className="btn primary" disabled={busy} onClick={handleSave}>
-          Save configuration
+          {t('config.save')}
         </button>
       </div>
 

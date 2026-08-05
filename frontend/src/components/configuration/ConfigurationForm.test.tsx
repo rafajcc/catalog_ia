@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import { renderWithI18n } from '../../test-utils';
 import userEvent from '@testing-library/user-event';
 import ConfigurationForm from './ConfigurationForm';
 
@@ -25,7 +26,7 @@ describe('ConfigurationForm', () => {
       ai: { provider: 'openai', model: 'gpt-4o', language: 'en', api_key: 'ai-key' }
     });
 
-    render(<ConfigurationForm />);
+    renderWithI18n(<ConfigurationForm />, 'en');
 
     expect(await screen.findByDisplayValue('https://shop.example.com')).toBeInTheDocument();
     expect(screen.getByDisplayValue('ps-key')).toBeInTheDocument();
@@ -38,7 +39,7 @@ describe('ConfigurationForm', () => {
 
   it('tests the PrestaShop connection with the current values', async () => {
     mockApi.testPrestashopConnection.mockResolvedValue({ success: true });
-    render(<ConfigurationForm />);
+    renderWithI18n(<ConfigurationForm />, 'en');
 
     const user = userEvent.setup();
     await user.type(screen.getByLabelText(/Base URL/), 'https://shop.test');
@@ -59,7 +60,7 @@ describe('ConfigurationForm', () => {
   it('tests the AI connection and saves configuration', async () => {
     mockApi.testAIConnection.mockResolvedValue({ success: true });
     mockApi.updateConfiguration.mockResolvedValue({ success: true });
-    render(<ConfigurationForm />);
+    renderWithI18n(<ConfigurationForm />, 'en');
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: /Test AI connection/ }));
@@ -80,7 +81,7 @@ describe('ConfigurationForm', () => {
 
   it('shows an error message when a test fails', async () => {
     mockApi.testPrestashopConnection.mockRejectedValue(new Error('bad api key'));
-    render(<ConfigurationForm />);
+    renderWithI18n(<ConfigurationForm />, 'en');
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: /Test PrestaShop connection/ }));
@@ -88,3 +89,4 @@ describe('ConfigurationForm', () => {
     expect(await screen.findByText('bad api key')).toBeInTheDocument();
   });
 });
+

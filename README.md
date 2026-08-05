@@ -31,6 +31,7 @@ The frontend provides the user interface and visual feedback:
 2. **State Management**: React state and context API for application state
 3. **Real-time Updates**: WebSocket or polling for progress tracking
 4. **Responsive Design**: Mobile and desktop compatible interface
+5. **Internationalization**: Spanish is the default UI language, English is selectable via a toggle in the header; the preference is persisted in `localStorage`
 
 ### File Selection Strategy
 

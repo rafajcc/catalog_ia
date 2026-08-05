@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { getApiService } from '../../services/api-service';
 import { getErrorMessage } from '../../utils/download';
+import { useI18n } from '../../i18n';
 import { SyncResult, SyncSession } from '../../types';
 
 interface Message {
@@ -10,6 +11,7 @@ interface Message {
 
 export default function SyncPanel({ dataId }: { dataId: string }) {
   const api = getApiService();
+  const { t } = useI18n();
   const [batchSize, setBatchSize] = useState(10);
   const [session, setSession] = useState<SyncSession | null>(null);
   const [results, setResults] = useState<SyncResult[]>([]);
@@ -26,7 +28,7 @@ export default function SyncPanel({ dataId }: { dataId: string }) {
       const created = response.session ?? null;
       setSession(created);
       setResults([]);
-      setMessage({ kind: 'success', text: `Session ${created?.id ?? response.session_id ?? ''} created` });
+      setMessage({ kind: 'success', text: t('sync.sessionCreated', { id: created?.id ?? response.session_id ?? '' }) });
     } catch (error) {
       setMessage({ kind: 'error', text: getErrorMessage(error) });
     } finally {
@@ -34,14 +36,14 @@ export default function SyncPanel({ dataId }: { dataId: string }) {
     }
   }
 
-  async function run(action: () => Promise<{ data?: any }>, successText: string) {
+  async function run(action: () => Promise<{ data?: any }>, successKey: string) {
     setBusy(true);
     setMessage(null);
     try {
       const result = await action();
       const items = Array.isArray(result.data) ? result.data : [];
       setResults(items);
-      setMessage({ kind: 'success', text: successText });
+      setMessage({ kind: 'success', text: t(successKey) });
     } catch (error) {
       setMessage({ kind: 'error', text: getErrorMessage(error) });
     } finally {
@@ -54,13 +56,13 @@ export default function SyncPanel({ dataId }: { dataId: string }) {
 
   return (
     <section className="card">
-      <h2>Synchronization</h2>
+      <h2>{t('sync.title')}</h2>
       <p>
-        Data id: <strong>{dataId}</strong>
+        {t('common.dataId', { id: dataId })}
       </p>
 
       <div className="field">
-        <label htmlFor="sync-batch-size">Batch size</label>
+        <label htmlFor="sync-batch-size">{t('sync.batchSize')}</label>
         <input
           id="sync-batch-size"
           type="number"
@@ -72,39 +74,39 @@ export default function SyncPanel({ dataId }: { dataId: string }) {
       </div>
 
       <button type="button" className="btn primary" disabled={busy} onClick={handleCreateSession}>
-        Create session
+        {t('sync.createSession')}
       </button>
 
       {session && (
         <>
           <div className="chips">
-            <span className="chip">Session: {session.id}</span>
-            <span className="chip">Status: {session.status}</span>
-            {session.dry_run && <span className="chip">Dry run</span>}
+            <span className="chip">{t('sync.sessionLabel', { id: session.id })}</span>
+            <span className="chip">{t('sync.statusLabel', { status: session.status })}</span>
+            {session.dry_run && <span className="chip">{t('sync.dryRun')}</span>}
           </div>
           <button
             type="button"
             className="btn"
             disabled={busy || !sessionId}
-            onClick={() => run(() => api.startSync(sessionId), 'Sync started')}
+            onClick={() => run(() => api.startSync(sessionId), 'sync.started')}
           >
-            Start sync
+            {t('sync.start')}
           </button>
           <button
             type="button"
             className="btn"
             disabled={busy || !sessionId}
-            onClick={() => run(() => api.getSyncResults(sessionId), 'Results loaded')}
+            onClick={() => run(() => api.getSyncResults(sessionId), 'sync.resultsLoaded')}
           >
-            Get results
+            {t('sync.getResults')}
           </button>
         </>
       )}
 
       {results.length > 0 && (
         <div className="chips">
-          <span className="chip">{completed} completed</span>
-          <span className="chip">{failed} failed</span>
+          <span className="chip">{t('sync.completed', { count: completed })}</span>
+          <span className="chip">{t('sync.failed', { count: failed })}</span>
         </div>
       )}
 

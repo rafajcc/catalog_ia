@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { getApiService } from '../../services/api-service';
 import { getErrorMessage } from '../../utils/download';
+import { useI18n } from '../../i18n';
 
 interface Message {
   kind: 'success' | 'error';
@@ -14,6 +15,7 @@ interface UploadSectionProps {
 
 export default function UploadSection({ dataId, onDataReady }: UploadSectionProps) {
   const api = getApiService();
+  const { t } = useI18n();
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [folderPath, setFolderPath] = useState('');
@@ -22,7 +24,7 @@ export default function UploadSection({ dataId, onDataReady }: UploadSectionProp
 
   async function handleCsvUpload() {
     if (!csvFile) {
-      setMessage({ kind: 'error', text: 'Select a CSV file first' });
+      setMessage({ kind: 'error', text: t('upload.errorNoCsv') });
       return;
     }
     setBusy(true);
@@ -32,10 +34,10 @@ export default function UploadSection({ dataId, onDataReady }: UploadSectionProp
       const parsed = await api.parseCSV(upload.file_id ?? '');
       const id = parsed?.data?.data_id ?? upload.file_id ?? '';
       if (id) {
-        setMessage({ kind: 'success', text: `File processed. Data id: ${id}` });
+        setMessage({ kind: 'success', text: t('upload.successProcessed', { id }) });
         onDataReady?.(id);
       } else {
-        setMessage({ kind: 'success', text: 'File uploaded successfully' });
+        setMessage({ kind: 'success', text: t('upload.successUploaded') });
       }
     } catch (error) {
       setMessage({ kind: 'error', text: getErrorMessage(error) });
@@ -46,14 +48,14 @@ export default function UploadSection({ dataId, onDataReady }: UploadSectionProp
 
   async function handleImageUpload() {
     if (imageFiles.length === 0) {
-      setMessage({ kind: 'error', text: 'Select at least one image first' });
+      setMessage({ kind: 'error', text: t('upload.errorNoImages') });
       return;
     }
     setBusy(true);
     setMessage(null);
     try {
       await api.uploadImages(imageFiles);
-      setMessage({ kind: 'success', text: `${imageFiles.length} image(s) uploaded` });
+      setMessage({ kind: 'success', text: t('upload.successImages', { count: imageFiles.length }) });
       setImageFiles([]);
     } catch (error) {
       setMessage({ kind: 'error', text: getErrorMessage(error) });
@@ -64,14 +66,14 @@ export default function UploadSection({ dataId, onDataReady }: UploadSectionProp
 
   async function handleFolderSelect() {
     if (!folderPath.trim()) {
-      setMessage({ kind: 'error', text: 'Enter an image folder path' });
+      setMessage({ kind: 'error', text: t('upload.errorNoFolder') });
       return;
     }
     setBusy(true);
     setMessage(null);
     try {
       await api.selectImageFolder(folderPath);
-      setMessage({ kind: 'success', text: 'Image folder selected' });
+      setMessage({ kind: 'success', text: t('upload.successFolder') });
     } catch (error) {
       setMessage({ kind: 'error', text: getErrorMessage(error) });
     } finally {
@@ -81,10 +83,10 @@ export default function UploadSection({ dataId, onDataReady }: UploadSectionProp
 
   return (
     <section className="card">
-      <h2>Data upload</h2>
+      <h2>{t('upload.title')}</h2>
 
       <div className="field">
-        <label htmlFor="csv-input">Product catalog (CSV)</label>
+        <label htmlFor="csv-input">{t('upload.csvLabel')}</label>
         <input
           id="csv-input"
           type="file"
@@ -98,12 +100,12 @@ export default function UploadSection({ dataId, onDataReady }: UploadSectionProp
           disabled={busy}
           onClick={handleCsvUpload}
         >
-          Upload and process CSV
+          {t('upload.csvButton')}
         </button>
       </div>
 
       <div className="field">
-        <label htmlFor="images-input">Product images</label>
+        <label htmlFor="images-input">{t('upload.imagesLabel')}</label>
         <input
           id="images-input"
           type="file"
@@ -113,28 +115,28 @@ export default function UploadSection({ dataId, onDataReady }: UploadSectionProp
           onChange={(event) => setImageFiles(Array.from(event.target.files ?? []))}
         />
         <button type="button" className="btn" disabled={busy} onClick={handleImageUpload}>
-          Upload images
+          {t('upload.imagesButton')}
         </button>
       </div>
 
       <div className="field">
-        <label htmlFor="folder-input">Image folder path</label>
+        <label htmlFor="folder-input">{t('upload.folderLabel')}</label>
         <input
           id="folder-input"
           type="text"
           value={folderPath}
           disabled={busy}
-          placeholder="C:/images"
+          placeholder={t('upload.folderPlaceholder')}
           onChange={(event) => setFolderPath(event.target.value)}
         />
         <button type="button" className="btn" disabled={busy} onClick={handleFolderSelect}>
-          Select folder
+          {t('upload.folderButton')}
         </button>
       </div>
 
       {dataId && (
         <div className="chips">
-          <span className="chip">Data id: {dataId}</span>
+          <span className="chip">{t('common.dataId', { id: dataId })}</span>
         </div>
       )}
 

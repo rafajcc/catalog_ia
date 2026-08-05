@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { getApiService } from '../../services/api-service';
 import { getErrorMessage } from '../../utils/download';
+import { useI18n } from '../../i18n';
 import { ImageMatchResult, ImageMatchStrategy } from '../../types';
 
 interface Message {
@@ -8,29 +9,30 @@ interface Message {
   text: string;
 }
 
-const STRATEGIES: Array<{ value: ImageMatchStrategy; label: string }> = [
-  { value: 'ean', label: 'EAN' },
-  { value: 'reference', label: 'Reference' },
-  { value: 'filename_pattern', label: 'Filename pattern' },
-  { value: 'manual', label: 'Manual' }
+const STRATEGIES: Array<{ value: ImageMatchStrategy; key: string }> = [
+  { value: 'ean', key: 'images.strategyEan' },
+  { value: 'reference', key: 'images.strategyReference' },
+  { value: 'filename_pattern', key: 'images.strategyFilename' },
+  { value: 'manual', key: 'images.strategyManual' }
 ];
 
 export default function ImageMatchingPanel({ dataId }: { dataId: string }) {
   const api = getApiService();
+  const { t } = useI18n();
   const [strategy, setStrategy] = useState<ImageMatchStrategy>('ean');
   const [threshold, setThreshold] = useState(0.7);
   const [results, setResults] = useState<ImageMatchResult[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
 
-  async function run(action: () => Promise<{ data?: any }>, successText: string) {
+  async function run(action: () => Promise<{ data?: any }>, successKey: string) {
     setBusy(true);
     setMessage(null);
     try {
       const result = await action();
       const items = Array.isArray(result.data) ? result.data : [];
       setResults(items);
-      setMessage({ kind: 'success', text: `${successText} (${items.length} matches)` });
+      setMessage({ kind: 'success', text: `${t(successKey)} (${t('images.matches', { count: items.length })})` });
     } catch (error) {
       setMessage({ kind: 'error', text: getErrorMessage(error) });
     } finally {
@@ -40,13 +42,13 @@ export default function ImageMatchingPanel({ dataId }: { dataId: string }) {
 
   return (
     <section className="card">
-      <h2>Image matching</h2>
+      <h2>{t('images.title')}</h2>
       <p>
-        Data id: <strong>{dataId}</strong>
+        {t('common.dataId', { id: dataId })}
       </p>
 
       <div className="field">
-        <label htmlFor="im-strategy">Strategy</label>
+        <label htmlFor="im-strategy">{t('images.strategy')}</label>
         <select
           id="im-strategy"
           value={strategy}
@@ -55,14 +57,14 @@ export default function ImageMatchingPanel({ dataId }: { dataId: string }) {
         >
           {STRATEGIES.map((item) => (
             <option key={item.value} value={item.value}>
-              {item.label}
+              {t(item.key)}
             </option>
           ))}
         </select>
       </div>
 
       <div className="field">
-        <label htmlFor="im-threshold">Minimum threshold</label>
+        <label htmlFor="im-threshold">{t('images.threshold')}</label>
         <input
           id="im-threshold"
           type="number"
@@ -82,29 +84,29 @@ export default function ImageMatchingPanel({ dataId }: { dataId: string }) {
         onClick={() =>
           run(
             () => api.matchImages(dataId, { strategy, threshold, max_images_per_product: 5 }),
-            'Matching finished'
+            'images.matchingFinished'
           )
         }
       >
-        Match images
+        {t('images.matchButton')}
       </button>
       <button
         type="button"
         className="btn"
         disabled={busy}
-        onClick={() => run(() => api.getImageMatchingResults(dataId), 'Results loaded')}
+        onClick={() => run(() => api.getImageMatchingResults(dataId), 'images.resultsLoaded')}
       >
-        Load results
+        {t('images.loadButton')}
       </button>
 
       {results.length > 0 && (
         <table className="data">
           <thead>
             <tr>
-              <th>Product</th>
-              <th>Images</th>
-              <th>Score</th>
-              <th>Strategy</th>
+              <th>{t('images.product')}</th>
+              <th>{t('images.images')}</th>
+              <th>{t('images.score')}</th>
+              <th>{t('images.tableStrategy')}</th>
             </tr>
           </thead>
           <tbody>

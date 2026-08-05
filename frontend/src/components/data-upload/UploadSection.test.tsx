@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import { renderWithI18n } from '../../test-utils';
 import userEvent from '@testing-library/user-event';
 import UploadSection from './UploadSection';
 
@@ -27,7 +28,7 @@ describe('UploadSection', () => {
     mockApi.parseCSV.mockResolvedValue({ success: true, data: { data_id: 'data-1' } });
     const onDataReady = jest.fn();
 
-    render(<UploadSection onDataReady={onDataReady} />);
+    renderWithI18n(<UploadSection onDataReady={onDataReady} />, 'en');
 
     const user = userEvent.setup();
     await user.upload(screen.getByLabelText(/Product catalog \(CSV\)/), makeFile('products.csv'));
@@ -43,7 +44,7 @@ describe('UploadSection', () => {
     mockApi.uploadCSV.mockRejectedValue(new Error('upload failed'));
     const onDataReady = jest.fn();
 
-    render(<UploadSection onDataReady={onDataReady} />);
+    renderWithI18n(<UploadSection onDataReady={onDataReady} />, 'en');
 
     const user = userEvent.setup();
     await user.upload(screen.getByLabelText(/Product catalog \(CSV\)/), makeFile('products.csv'));
@@ -54,7 +55,7 @@ describe('UploadSection', () => {
   });
 
   it('warns when no CSV is selected', async () => {
-    render(<UploadSection />);
+    renderWithI18n(<UploadSection />, 'en');
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: /Upload and process CSV/ }));
@@ -65,7 +66,7 @@ describe('UploadSection', () => {
 
   it('uploads multiple images', async () => {
     mockApi.uploadImages.mockResolvedValue({ success: true });
-    render(<UploadSection />);
+    renderWithI18n(<UploadSection />, 'en');
 
     const user = userEvent.setup();
     await user.upload(screen.getByLabelText(/Product images/), [
@@ -81,7 +82,7 @@ describe('UploadSection', () => {
 
   it('selects an image folder', async () => {
     mockApi.selectImageFolder.mockResolvedValue({ success: true });
-    render(<UploadSection />);
+    renderWithI18n(<UploadSection />, 'en');
 
     const user = userEvent.setup();
     await user.type(screen.getByLabelText(/Image folder path/), 'C:/images');
@@ -92,7 +93,8 @@ describe('UploadSection', () => {
   });
 
   it('shows the current data id chip when provided', () => {
-    render(<UploadSection dataId="data-9" />);
+    renderWithI18n(<UploadSection dataId="data-9" />, 'en');
     expect(screen.getByText(/Data id: data-9/)).toBeInTheDocument();
   });
 });
+

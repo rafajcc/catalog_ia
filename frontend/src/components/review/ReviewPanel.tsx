@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { getApiService } from '../../services/api-service';
 import { downloadBlob, getErrorMessage } from '../../utils/download';
+import { useI18n } from '../../i18n';
 import { ReviewState } from '../../types';
 
 interface Message {
@@ -10,6 +11,7 @@ interface Message {
 
 export default function ReviewPanel({ dataId }: { dataId: string }) {
   const api = getApiService();
+  const { t } = useI18n();
   const [review, setReview] = useState<ReviewState | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
@@ -20,7 +22,7 @@ export default function ReviewPanel({ dataId }: { dataId: string }) {
     try {
       const result = await api.getReviewState(dataId);
       setReview(result.data ?? null);
-      setMessage({ kind: 'success', text: 'Review state loaded' });
+      setMessage({ kind: 'success', text: t('review.loaded') });
     } catch (error) {
       setMessage({ kind: 'error', text: getErrorMessage(error) });
     } finally {
@@ -33,7 +35,7 @@ export default function ReviewPanel({ dataId }: { dataId: string }) {
     setMessage(null);
     try {
       await api.batchReviewAction(dataId, 'accept_all');
-      setMessage({ kind: 'success', text: 'All changes accepted' });
+      setMessage({ kind: 'success', text: t('review.accepted') });
     } catch (error) {
       setMessage({ kind: 'error', text: getErrorMessage(error) });
     } finally {
@@ -47,7 +49,7 @@ export default function ReviewPanel({ dataId }: { dataId: string }) {
     try {
       const blob = await api.exportReviewState(dataId);
       downloadBlob(blob, `review_${dataId}.json`);
-      setMessage({ kind: 'success', text: 'Review state exported' });
+      setMessage({ kind: 'success', text: t('review.exported') });
     } catch (error) {
       setMessage({ kind: 'error', text: getErrorMessage(error) });
     } finally {
@@ -57,29 +59,29 @@ export default function ReviewPanel({ dataId }: { dataId: string }) {
 
   return (
     <section className="card">
-      <h2>Review</h2>
+      <h2>{t('review.title')}</h2>
       <p>
-        Data id: <strong>{dataId}</strong>
+        {t('common.dataId', { id: dataId })}
       </p>
 
       <button type="button" className="btn primary" disabled={busy} onClick={handleLoad}>
-        Load review state
+        {t('review.loadButton')}
       </button>
 
       {review && (
         <>
           <div className="chips">
-            <span className="chip">{review.total_products} products</span>
-            <span className="chip">{review.valid_count} valid</span>
-            <span className="chip">{review.invalid_count} invalid</span>
-            <span className="chip">{review.suggested_count} with suggestions</span>
+            <span className="chip">{t('review.products', { count: review.total_products })}</span>
+            <span className="chip">{t('review.valid', { count: review.valid_count })}</span>
+            <span className="chip">{t('review.invalid', { count: review.invalid_count })}</span>
+            <span className="chip">{t('review.withSuggestions', { count: review.suggested_count })}</span>
           </div>
           <div style={{ marginTop: '0.75rem' }}>
             <button type="button" className="btn" disabled={busy} onClick={handleAcceptAll}>
-              Accept all
+              {t('review.acceptAll')}
             </button>
             <button type="button" className="btn" disabled={busy} onClick={handleExport}>
-              Export
+              {t('review.export')}
             </button>
           </div>
         </>

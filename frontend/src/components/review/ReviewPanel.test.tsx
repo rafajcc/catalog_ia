@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import { renderWithI18n } from '../../test-utils';
 import userEvent from '@testing-library/user-event';
 import ReviewPanel from './ReviewPanel';
 
@@ -38,7 +39,7 @@ describe('ReviewPanel', () => {
 
   it('loads the review state and shows the summary', async () => {
     mockApi.getReviewState.mockResolvedValue({ success: true, data: review });
-    render(<ReviewPanel dataId="d1" />);
+    renderWithI18n(<ReviewPanel dataId="d1" />, 'en');
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Load review state' }));
@@ -53,7 +54,7 @@ describe('ReviewPanel', () => {
   it('accepts all changes via the batch action', async () => {
     mockApi.getReviewState.mockResolvedValue({ success: true, data: review });
     mockApi.batchReviewAction.mockResolvedValue({ success: true });
-    render(<ReviewPanel dataId="d1" />);
+    renderWithI18n(<ReviewPanel dataId="d1" />, 'en');
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Load review state' }));
@@ -66,7 +67,7 @@ describe('ReviewPanel', () => {
   it('exports the review state as a file', async () => {
     mockApi.getReviewState.mockResolvedValue({ success: true, data: review });
     mockApi.exportReviewState.mockResolvedValue(new Blob(['{}'], { type: 'application/json' }));
-    render(<ReviewPanel dataId="d1" />);
+    renderWithI18n(<ReviewPanel dataId="d1" />, 'en');
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Load review state' }));
@@ -79,7 +80,7 @@ describe('ReviewPanel', () => {
 
   it('shows an error when loading fails', async () => {
     mockApi.getReviewState.mockRejectedValue(new Error('state not found'));
-    render(<ReviewPanel dataId="d1" />);
+    renderWithI18n(<ReviewPanel dataId="d1" />, 'en');
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Load review state' }));
@@ -87,3 +88,4 @@ describe('ReviewPanel', () => {
     expect(await screen.findByText('state not found')).toBeInTheDocument();
   });
 });
+

@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import { renderWithI18n } from '../../test-utils';
 import userEvent from '@testing-library/user-event';
 import ImageMatchingPanel from './ImageMatchingPanel';
 
@@ -30,7 +31,7 @@ describe('ImageMatchingPanel', () => {
         }
       ]
     });
-    render(<ImageMatchingPanel dataId="d1" />);
+    renderWithI18n(<ImageMatchingPanel dataId="d1" />, 'en');
 
     const user = userEvent.setup();
     await user.selectOptions(screen.getByLabelText('Strategy'), 'reference');
@@ -55,7 +56,7 @@ describe('ImageMatchingPanel', () => {
       success: true,
       data: []
     });
-    render(<ImageMatchingPanel dataId="d1" />);
+    renderWithI18n(<ImageMatchingPanel dataId="d1" />, 'en');
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Load results' }));
@@ -66,7 +67,7 @@ describe('ImageMatchingPanel', () => {
 
   it('shows an error when matching fails', async () => {
     mockApi.matchImages.mockRejectedValue(new Error('no images folder'));
-    render(<ImageMatchingPanel dataId="d1" />);
+    renderWithI18n(<ImageMatchingPanel dataId="d1" />, 'en');
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Match images' }));
@@ -74,3 +75,4 @@ describe('ImageMatchingPanel', () => {
     expect(await screen.findByText('no images folder')).toBeInTheDocument();
   });
 });
+
