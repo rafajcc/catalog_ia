@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frontend testing infrastructure (jest + ts-jest + jsdom, RTL, user-event) and tests for services, utilities, hooks, every panel component, and the dashboard flow (93 tests, ~94% coverage).
 - New frontend scripts `test:coverage`, plus `tsconfig.json`, `vite.config.ts`, `.eslintrc.json`, and `jest.setup.ts` for the frontend.
 - README reorganized with separate backend and frontend sections for running the application, running the tests, and code quality checks.
+- `GET /api/status` endpoint so the frontend status indicator reports the backend as online.
 
 ### Fixed
 - The frontend `api-service.ts` had an invalid Python-style docstring at the top and imported a non-existent `types` module; both are resolved, methods are typed against the shared API contract, and the service is exposed through a lazy singleton.

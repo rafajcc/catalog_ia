@@ -14,6 +14,15 @@ describe('createApp', () => {
     expect(typeof app.use).toBe('function');
   });
 
+  it('responds with Online status at /api/status', async () => {
+    const app = createApp();
+
+    const res = await request(app).get('/api/status');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ success: true, message: 'Online' });
+  });
+
   it('responds with a 404 JSON error for unknown routes', async () => {
     const app = createApp();
 

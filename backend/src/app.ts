@@ -50,6 +50,9 @@ export default function createApp() {
   app.use('/uploads', express.static('uploads'));
 
   // API routes will be added here
+  app.get('/api/status', (_req, res) => {
+    res.json({ success: true, message: 'Online' });
+  });
 
   // Error handling middleware
   app.use(ErrorHandler.notFound);
