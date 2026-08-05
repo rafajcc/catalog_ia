@@ -100,19 +100,29 @@ IMAGE_ALLOWED_FORMATS=image/jpeg,image/png,image/webp
 
 ### Running the Application
 
-1. Start the backend:
-```bash
-cd backend
-npm run dev
-```
+Run the **backend** and the **frontend** in two separate terminals. The backend exposes the API on `http://localhost:3000`; the frontend dev server proxies all `/api` and `/uploads` requests to it.
 
-2. Start the frontend:
-```bash
-cd frontend
-npm run dev
-```
+#### Backend
 
-3. Open your browser and navigate to `http://localhost:5173`
+From the `backend/` folder:
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Dev server with hot reload — http://localhost:3000 |
+| `npm run build` | Compile TypeScript to `dist/` |
+| `npm start` | Run the compiled build (run `npm run build` first) |
+
+#### Frontend
+
+From the `frontend/` folder:
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Vite dev server — http://localhost:5173 |
+| `npm run build` | Type-check and production build to `dist/` |
+| `npm run preview` | Preview the production build |
+
+Once both are running, open **http://localhost:5173** in your browser.
 
 ## Project Structure
 
@@ -143,28 +153,32 @@ backend/
 ### Frontend
 ```
 frontend/
+├── index.html
 ├── src/
-│   ├── main.tsx          # React entry point
-│   ├── types/            # TypeScript type definitions
-│   ├── hooks/           # Custom React hooks
-│   ├── utils/            # Utility functions
-│   ├── components/       # UI components
-│   │   ├── layout/          # Main application layout
+│   ├── main.tsx           # React entry point
+│   ├── App.tsx            # Root component
+│   ├── types.ts           # Shared type definitions
+│   ├── services/          # API service layer (api-service.ts)
+│   ├── hooks/             # Custom React hooks (useApi)
+│   ├── utils/             # Utility functions (format, download)
+│   ├── styles/            # Global CSS styles
+│   ├── components/        # UI components
+│   │   ├── layout/          # Header and tab navigation
 │   │   ├── configuration/   # Settings for PrestaShop and AI
-│   │   ├── data-upload/    # CSV and image selection
-│   │   ├── validation/     # Validation results display
-│   │   ├── image-matching/ # Image selection interface
-│   │   ├── ai-suggestions/ # AI text editing
-│   │   ├── review/        # Final review screen
-│   │   └── sync/          # Sync progress and results
-│   ├── pages/            # Page components
-│   │   └── dashboard/      # Main dashboard
-│   ├── services/          # API service layer
-│   ├── styles/           # CSS styles
-│   └── public/           # Static assets
+│   │   ├── data-upload/     # CSV and image selection
+│   │   ├── validation/      # Validation results display
+│   │   ├── image-matching/  # Image selection interface
+│   │   ├── ai-suggestions/  # AI text editing
+│   │   ├── sync/            # Sync progress and results
+│   │   └── review/          # Final review screen
+│   └── pages/
+│       └── dashboard/       # Main dashboard
 ├── package.json
-├── vite.config.ts
-└── tailwind.config.js
+├── .eslintrc.json
+├── jest.config.js
+├── jest.setup.ts
+├── tsconfig.json
+└── vite.config.ts
 ```
 
 ### Examples and Documentation
@@ -307,23 +321,19 @@ The application supports flexible CSV column mapping:
 - Size validation
 - Duplicate detection
 
-## Development and Testing
+## Running the Tests
 
-All backend commands run from the `backend/` folder:
-
-```bash
-cd backend
-```
+Tests use **Jest + ts-jest**. The backend and frontend are independent projects: each has its own Jest configuration, its own scripts, and must be run from its own folder.
 
 > **Windows (PowerShell):** if `npm` is blocked by the execution policy, use `npm.cmd` instead of `npm` in every command below. PowerShell may also show git/npm output in red — that is normal and does not mean the command failed.
 
-### Running the tests (Jest)
+### Backend tests
 
-Tests use **Jest + ts-jest** (configured in `backend/jest.config.js`). Test files are written in TypeScript and live in `test/` (e.g. `test/csv-parser.test.ts`); you can also place `*.test.ts` files next to the code under `backend/src/`. Shared test factories (`makeProduct`, `makeRow`) live in `test/helpers.ts`.
+Configuration: `backend/jest.config.js`. Test files are written in TypeScript and live in `test/` (e.g. `test/csv-parser.test.ts`); you can also place `*.test.ts` files next to the code under `backend/src/`. Shared test factories (`makeProduct`, `makeRow`) live in `test/helpers.ts`.
 
 | Command | What it does |
 |---|---|
-| `npm test` | Runs the full test suite |
+| `npm test` | Runs the full backend test suite |
 | `npm run test:watch` | Runs tests in watch mode (re-runs on changes) |
 | `npm run test:coverage` | Runs tests with a coverage report |
 | `npm run test:csv` | Runs only the CSV parser tests |
@@ -341,14 +351,14 @@ Tests use **Jest + ts-jest** (configured in `backend/jest.config.js`). Test file
 | `npm run test:prestashop` | Runs only the PrestaShop client tests (mocked axios, no network) |
 | `npm run test:sync-service` | Runs only the sync service tests (faked collaborators) |
 
-Coverage is collected from `backend/src/**/*.ts` and covers all modules: the pure-logic modules (`csv-parser`, `validator`, `product-normalizer`, `image-matcher`, `image-ranker`, `review-state`, `audit-log`, `logger`, `error-handler`, `ai-text-suggester`), the Express app and server entry point, and the network-facing `prestashop-client` and `sync-service` (tested with mocked axios / faked collaborators).
-
-Example:
+All commands above run from the `backend/` folder:
 
 ```bash
 cd backend
 npm test
 ```
+
+Coverage is collected from `backend/src/**/*.ts` and covers all modules: the pure-logic modules (`csv-parser`, `validator`, `product-normalizer`, `image-matcher`, `image-ranker`, `review-state`, `audit-log`, `logger`, `error-handler`, `ai-text-suggester`), the Express app and server entry point, and the network-facing `prestashop-client` and `sync-service` (tested with mocked axios / faked collaborators).
 
 To add a new test, create a file like `test/<module>.test.ts`:
 
@@ -364,7 +374,7 @@ describe('CSVParser', () => {
 });
 ```
 
-### Code quality checks
+#### Code quality checks (backend)
 
 | Command | What it does |
 |---|---|
@@ -372,43 +382,48 @@ describe('CSVParser', () => {
 | `npm run lint` | ESLint over `src/` |
 | `npm run lint:fix` | Auto-fix lint issues |
 
-### Running the application
+### Frontend tests
 
-```bash
-cd backend
-npm run dev    # dev server with hot reload (http://localhost:3000)
-npm run build  # compile TypeScript to dist/
-npm start      # run the compiled build (run `npm run build` first)
-```
-
-### Frontend
-
-The frontend has its own scripts under `frontend/`. Run them from the `frontend/` folder.
+Configuration: `frontend/jest.config.js`. Tests run in jsdom with React Testing Library and are colocated next to their sources (e.g. `src/components/sync/SyncPanel.test.tsx`).
 
 | Command | What it does |
 |---|---|
-| `npm run dev` | Vite dev server with a proxy to `http://localhost:3000` |
-| `npm run build` | Type-check and production build to `dist/` |
-| `npm test` | Runs the frontend Jest suite (jsdom + React Testing Library) |
-| `npm run test:coverage` | Runs frontend tests with a coverage report |
+| `npm test` | Runs the full frontend test suite |
+| `npm run test:watch` | Runs tests in watch mode (re-runs on changes) |
+| `npm run test:coverage` | Runs tests with a coverage report |
+
+All commands above run from the `frontend/` folder:
+
+```bash
+cd frontend
+npm test
+```
+
+The frontend suite covers the API layer (mocked axios, including the 401/500 interceptors), utilities, hooks, every panel component (with the API service module mocked), and the full dashboard flow end-to-end through the UI. Current coverage is ~94%.
+
+#### Code quality checks (frontend)
+
+| Command | What it does |
+|---|---|
 | `npm run typecheck` | TypeScript type checking (`tsc --noEmit`) |
 | `npm run lint` | ESLint over `src/` (TS + React) |
-
-Frontend tests are colocated next to their sources (e.g. `src/components/sync/SyncPanel.test.tsx`). The API layer is tested with a mocked axios instance, panel components mock the API service module, and the dashboard flow is covered end-to-end through the UI. The frontend suite currently has ~94% coverage across services, utilities, hooks, components, and the dashboard page.
+| `npm run lint:fix` | Auto-fix lint issues |
 
 ### Suggested workflow before committing
 
 ```bash
+# Backend
 cd backend
 npm run typecheck
 npm test
 npm run lint
-```
 
-### Environment Types
-- **Development**: Full features, hot reload, debugging
-- **Testing**: Mock data, test API endpoints
-- **Production**: Optimized, error handling, logging
+# Frontend
+cd ../frontend
+npm run typecheck
+npm test
+npm run lint
+```
 
 ## Troubleshooting
 
