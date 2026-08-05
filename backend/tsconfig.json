@@ -6,7 +6,8 @@
     "baseUrl": ".",
     "paths": {
       "supertest": ["node_modules/@types/supertest"],
-      "axios": ["node_modules/axios"]
+      "axios": ["node_modules/axios"],
+      "fs-extra": ["node_modules/fs-extra"]
     },
     "lib": ["ES2020"],
     "outDir": "dist",

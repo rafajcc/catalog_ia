@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Full UI internationalization (Spanish by default, English selectable) via an `I18nProvider`/`useI18n` hook with a language toggle in the header and `localStorage` persistence (`frontend/src/i18n.tsx`).
 - README reorganized with separate backend and frontend sections for running the application, running the tests, and code quality checks.
 - `GET /api/status` endpoint so the frontend status indicator reports the backend as online.
+- Full backend API routes (`backend/src/routes.ts`) wiring the frontend contract to the processing modules: configuration get/update + PrestaShop/AI connection tests, CSV/image/folder uploads, CSV parsing, product validation, image matching, AI text suggestions, dry-run sync sessions, review state/batch/export, downloads (path-traversal guarded), health and logs. State is held in a per-app-instance in-memory store (`backend/src/store.ts`); uploaded files are persisted under `backend/uploads/` (now gitignored).
+- `ReviewStateManager.getState()` so routes can serialize the current review state.
+- API route integration tests (`test/api-routes.test.ts`, supertest) covering the full upload → parse → validate → match → suggest → sync → review flow plus error cases (18 tests), and a `test:api-routes` npm script.
+- Clarified the image-folder input label in both languages ("…already on the server") in the upload panel.
 
 ### Fixed
 - The frontend `api-service.ts` had an invalid Python-style docstring at the top and imported a non-existent `types` module; both are resolved, methods are typed against the shared API contract, and the service is exposed through a lazy singleton.

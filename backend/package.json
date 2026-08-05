@@ -23,6 +23,7 @@
     "test:error-handler": "jest --testPathPattern=error-handler",
     "test:ai-suggester": "jest --testPathPattern=ai-text-suggester",
     "test:app": "jest --testPathPattern=app",
+    "test:api-routes": "jest --testPathPattern=api-routes",
     "test:index": "jest --testPathPattern=index",
     "test:prestashop": "jest --testPathPattern=prestashop-client",
     "test:sync-service": "jest --testPathPattern=sync-service",

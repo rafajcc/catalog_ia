@@ -1,13 +1,26 @@
 // Main Express application setup
 
+import path from 'path';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import fileUpload from 'express-fileupload';
 import { ErrorHandler } from './utils/error-handler';
+import { DataStore } from './store';
+import { createApiRouter, RouteDependencies } from './routes';
+import { PrestaShopConfig } from './types';
+import { PrestaShopClient } from './modules/prestashop-client/prestashop-client';
 
-export default function createApp() {
+export interface CreateAppOptions {
+  store?: DataStore;
+  uploadsDir?: string;
+  prestashopClientFactory?: (config: PrestaShopConfig) => PrestaShopClient;
+}
+
+export default function createApp(options: CreateAppOptions = {}) {
   const app = express();
+  const uploadsDir = options.uploadsDir || path.resolve(process.cwd(), 'uploads');
 
   // Security middleware
   app.use(helmet({
@@ -46,10 +59,25 @@ export default function createApp() {
   app.use(express.json({ limit: process.env.MAX_BODY_SIZE || '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: process.env.MAX_BODY_SIZE || '10mb' }));
 
-  // Static file serving
-  app.use('/uploads', express.static('uploads'));
+  // Multipart uploads
+  app.use(fileUpload({
+    limits: { fileSize: 50 * 1024 * 1024 },
+    abortOnLimit: true,
+    createParentPath: true
+  }));
 
-  // API routes will be added here
+  // Static file serving
+  app.use('/uploads', express.static(uploadsDir));
+
+  // API routes
+  const store = options.store || new DataStore();
+  const routeDeps: RouteDependencies = {
+    store,
+    uploadsDir,
+    prestashopClientFactory: options.prestashopClientFactory
+  };
+  app.use('/api', createApiRouter(routeDeps));
+
   app.get('/api/status', (_req, res) => {
     res.json({ success: true, message: 'Online' });
   });

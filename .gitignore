@@ -19,6 +19,9 @@ coverage/
 *.tmp
 temp-test.csv
 
+# Runtime uploads
+uploads/
+
 # OS / editor
 .DS_Store
 Thumbs.db

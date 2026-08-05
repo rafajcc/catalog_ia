@@ -178,6 +178,8 @@ backend/
 ├── src/
 │   ├── index.ts           # Main entry point
 │   ├── app.ts             # Express application setup
+│   ├── routes.ts          # API routes (mounts the processing modules)
+│   ├── store.ts           # In-memory data store (per app instance)
 │   ├── types.ts           # Shared type definitions
 │   ├── utils/             # Shared utilities
 │   │   ├── logger.ts      # Logging configuration
@@ -199,6 +201,42 @@ backend/
 ├── jest.config.js
 └── tsconfig.json
 ```
+
+### API Endpoints
+
+All endpoints live under `/api` and are defined in `backend/src/routes.ts`. The backend is **stateless**: uploads, parsed datasets, validation/matching/suggestion results, sync sessions and review states live in an in-memory store scoped to each app instance (uploaded files are persisted on disk under `backend/uploads/`). Sync sessions run in **dry-run mode** by default, so nothing is written to PrestaShop until the Web Service is configured and real execution is enabled.
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/status`, `/api/health` | Liveness / health checks |
+| GET | `/api/config` | Read the current configuration |
+| PUT | `/api/config` | Update (and merge) the configuration |
+| POST | `/api/config/test/prestashop` | Test the PrestaShop Web Service connection |
+| POST | `/api/config/test/ai` | Test the AI provider (mock provider needs no API key) |
+| POST | `/api/upload/csv` | Upload a CSV file (multipart `file`) |
+| POST | `/api/upload/images` | Upload product images (multipart `files[]`) |
+| POST | `/api/upload/folder` | Scan an image folder already on the server (`{ folderPath }`) |
+| POST | `/api/process/csv` | Parse an uploaded CSV into a `data_id` (`{ fileId }`) |
+| GET | `/api/process/csv/:fileId` | Get the parsed dataset for an upload |
+| POST | `/api/validate/products/:dataId` | Validate the products of a dataset |
+| GET | `/api/validate/results/:dataId` | Get stored validation results |
+| POST | `/api/images/match/:dataId` | Match images to products (`{ strategy, threshold, max_images_per_product }`) |
+| GET | `/api/images/results/:dataId` | Get stored image-matching results |
+| POST | `/api/ai/suggest/:dataId` | Generate AI text suggestions (mock/OpenAI/Anthropic/OpenRouter) |
+| GET | `/api/ai/suggestions/:dataId` | Get stored AI suggestions |
+| POST | `/api/sync/session/:dataId` | Create a dry-run sync session (`{ batch_size }`) |
+| GET | `/api/sync/session/:sessionId` | Get a sync session |
+| POST | `/api/sync/start/:sessionId` | Execute a sync session (dry-run safe) |
+| POST | `/api/sync/cancel/:sessionId` | Cancel a sync session |
+| GET | `/api/sync/results/:sessionId` | Get sync results |
+| GET | `/api/sync/export/:sessionId/:format` | Export sync results as `json` or `csv` |
+| GET | `/api/review/state/:dataId` | Load the review state for a dataset |
+| PUT | `/api/review/state/:dataId` | Update review edits |
+| POST | `/api/review/apply/:dataId` | Apply field/image edits |
+| POST | `/api/review/batch/:dataId` | Run a batch action (`{ action, targetIds }`) |
+| GET | `/api/review/export/:dataId` | Export the review state as JSON |
+| GET | `/api/download/:filePath` | Download an uploaded file (path-traversal guarded) |
+| GET | `/api/logs` | Read recent logs |
 
 ### Frontend
 ```
@@ -395,6 +433,7 @@ Configuration: `backend/jest.config.js`. Test files are written in TypeScript an
 | `npm run test:error-handler` | Runs only the error handler tests |
 | `npm run test:ai-suggester` | Runs only the AI text suggester tests (mock provider, no API calls) |
 | `npm run test:app` | Runs only the Express app integration tests (supertest) |
+| `npm run test:api-routes` | Runs only the API route integration tests (supertest, in-memory store) |
 | `npm run test:index` | Runs only the server entry point tests |
 | `npm run test:prestashop` | Runs only the PrestaShop client tests (mocked axios, no network) |
 | `npm run test:sync-service` | Runs only the sync service tests (faked collaborators) |
