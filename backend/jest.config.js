@@ -5,7 +5,8 @@ module.exports = {
   testMatch: ['**/*.test.ts', '**/*.test.js'],
   moduleFileExtensions: ['ts', 'js', 'json', 'node'],
   moduleNameMapper: {
-    '^supertest$': '<rootDir>/node_modules/supertest'
+    '^supertest$': '<rootDir>/node_modules/supertest',
+    '^axios$': '<rootDir>/node_modules/axios'
   },
   clearMocks: true,
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.test.ts'],

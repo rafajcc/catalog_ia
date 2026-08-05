@@ -5,7 +5,8 @@
     "moduleResolution": "node",
     "baseUrl": ".",
     "paths": {
-      "supertest": ["node_modules/@types/supertest"]
+      "supertest": ["node_modules/@types/supertest"],
+      "axios": ["node_modules/axios"]
     },
     "lib": ["ES2020"],
     "outDir": "dist",

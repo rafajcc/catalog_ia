@@ -4,7 +4,7 @@
 
 import axios, { AxiosInstance } from 'axios';
 import { xml2json, json2xml } from 'xml-js';
-import { FormData } from 'formdata-node';
+import { FormData, Blob } from 'formdata-node';
 import { readFileSync } from 'fs';
 import path from 'path';
 import { logger } from '../../utils/logger';
@@ -100,10 +100,10 @@ export class PrestaShopClient {
     try {
       const params = this.buildQueryParams(filters);
       const response = await this.client.get(this.endpoints.products, { params });
-      const products = this.parseXmlResponse(response.data);
+      const products = this.toArray(this.parseXmlResponse(response.data)?.prestashop?.products?.product);
 
-      if (Array.isArray(products) && products.length > 0) {
-        return products[0];
+      if (products.length > 0) {
+        return this.extractProduct(products[0]);
       }
 
       return null;
@@ -120,10 +120,10 @@ export class PrestaShopClient {
         : { id_product: parseInt(productId) };
 
       const response = await this.client.get(this.endpoints.stock_availables, { params });
-      const stockData = this.parseXmlResponse(response.data);
+      const stockData = this.toArray(this.parseXmlResponse(response.data)?.prestashop?.stock_availables?.stock_available);
 
-      if (Array.isArray(stockData) && stockData.length > 0) {
-        return stockData[0];
+      if (stockData.length > 0) {
+        return this.extractStockAvailable(stockData[0]);
       }
 
       return null;
@@ -208,16 +208,19 @@ export class PrestaShopClient {
     try {
       const xmlData = this.jsonToXml(productData);
       const response = await this.client.post(this.endpoints.products, xmlData);
-      const createdProduct = this.parseXmlResponse(response.data);
+      const createdProduct = this.parseXmlResponse(response.data)?.prestashop?.product ?? {};
+
+      const createdId = createdProduct._attributes?.id;
+      const createdReference = createdProduct.reference?._cdata ?? createdProduct.reference?._text;
 
       logger.info('Product created successfully', {
-        productId: createdProduct.id,
-        reference: createdProduct.reference
+        productId: createdId,
+        reference: createdReference
       });
 
       return {
         success: true,
-        product_id: createdProduct.id,
+        product_id: createdId,
         operation: 'create_product',
         errors: [],
         warnings: [],
@@ -243,7 +246,7 @@ export class PrestaShopClient {
 
       // Add image file
       const fileBuffer = readFileSync(imageData.file);
-      formData.append('image', fileBuffer as unknown as Blob, path.basename(imageData.file));
+      formData.append('image', new Blob([fileBuffer]), path.basename(imageData.file));
 
       // Add image metadata
       formData.append('position', imageData.position?.toString() || '0');
@@ -393,12 +396,40 @@ export class PrestaShopClient {
 
   private parseXmlResponse(xml: string): any {
     try {
-      const json = xml2json(xml, { compact: true, spaces: 2 });
-      return json;
+      return JSON.parse(xml2json(xml, { compact: true, spaces: 2 }));
     } catch (error) {
       logger.error('XML parsing failed', { xml, error });
       throw new Error('Invalid XML response from PrestaShop');
     }
+  }
+
+  private toArray<T>(value: T | T[] | null | undefined): T[] {
+    if (value === undefined || value === null) {
+      return [];
+    }
+    return Array.isArray(value) ? value : [value];
+  }
+
+  private extractText(value: any): string | undefined {
+    return value?._cdata ?? value?._text;
+  }
+
+  private extractProduct(node: any): PrestaShopProduct {
+    return {
+      id: node?._attributes?.id,
+      reference: this.extractText(node?.reference),
+      ean13: this.extractText(node?.ean13)
+    };
+  }
+
+  private extractStockAvailable(node: any): PrestaShopStockAvailable {
+    const quantity = this.extractText(node?.quantity);
+    return {
+      id: node?._attributes?.id,
+      id_product: this.extractText(node?.id_product),
+      quantity: quantity !== undefined ? parseInt(quantity, 10) : undefined,
+      reference: this.extractText(node?.reference)
+    };
   }
 
   private jsonToXml(data: any): string {

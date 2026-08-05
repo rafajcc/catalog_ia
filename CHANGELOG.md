@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integration tests for the Express app via supertest (routing, security headers, CORS, rate limiting, error handling).
 - Tests for the server entry point (startup, PORT handling, graceful shutdown, error handler setup) using module mocks.
 - New npm scripts `test:logger`, `test:error-handler`, `test:ai-suggester`, `test:app`, and `test:index`.
+- PrestaShop client tests with a mocked axios instance (interceptors, XML parsing, product/stock/image sync flows).
+- Sync service tests using faked collaborators (planning, execution, dry-run, summaries).
+- New npm scripts `test:prestashop` and `test:sync-service`.
+
+### Fixed
+- PrestaShop client XML responses were never parsed to objects (`xml2json` returns a JSON string), so `resolveProduct`/`resolveStockAvailable` always returned `null` and `createProduct` read undefined ids. The parsed response is now unwrapped and normalized (single/multiple results, `_attributes`/`_cdata`/`_text` extraction).
+- Product image uploads always failed because `formdata-node` rejects raw Buffers; the file buffer is now wrapped in a `Blob`.
 
 ## [0.1.0] - 2026-08-05
 
