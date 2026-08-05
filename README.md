@@ -145,6 +145,7 @@ npm start          # serve the compiled API
 # Frontend
 cd ../frontend
 npm run build      # generate frontend/dist/ with the optimized static files
+npm run preview    # serve that build locally to check it (optional)
 ```
 
 The backend serves the API; the frontend `dist/` folder is static files you deploy to any web server (nginx, Netlify, Vercel, etc.). `npm run preview` in `frontend/` only serves that build locally to check it before deploying — Vite uses `preview` instead of `start` because the frontend is a static site, not a long-running Node server (that is why only the backend has `start`).
