@@ -319,14 +319,22 @@ cd backend
 
 ### Running the tests (Jest)
 
-Tests use **Jest + ts-jest** (configured in `backend/jest.config.js`). Test files are written in TypeScript and live in `test/` (e.g. `test/csv-parser.test.ts`); you can also place `*.test.ts` files next to the code under `backend/src/`.
+Tests use **Jest + ts-jest** (configured in `backend/jest.config.js`). Test files are written in TypeScript and live in `test/` (e.g. `test/csv-parser.test.ts`); you can also place `*.test.ts` files next to the code under `backend/src/`. Shared test factories (`makeProduct`, `makeRow`) live in `test/helpers.ts`.
 
 | Command | What it does |
 |---|---|
 | `npm test` | Runs the full test suite |
 | `npm run test:watch` | Runs tests in watch mode (re-runs on changes) |
-| `npm run test:csv` | Runs only the CSV parser tests |
 | `npm run test:coverage` | Runs tests with a coverage report |
+| `npm run test:csv` | Runs only the CSV parser tests |
+| `npm run test:validator` | Runs only the product validator tests |
+| `npm run test:normalizer` | Runs only the product normalizer tests |
+| `npm run test:image-matcher` | Runs only the image matcher tests |
+| `npm run test:image-ranker` | Runs only the image ranker tests |
+| `npm run test:review-state` | Runs only the review state manager tests |
+| `npm run test:audit-log` | Runs only the audit log tests |
+
+Coverage is collected from `backend/src/**/*.ts` and currently covers the pure-logic modules: `csv-parser`, `validator`, `product-normalizer`, `image-matcher`, `image-ranker`, `review-state`, and `audit-log`. Network-facing modules (`prestashop-client`, `sync-service`, `ai-text-suggester`, server `app.ts`/`index.ts`, `error-handler.ts`) are not covered yet.
 
 Example:
 

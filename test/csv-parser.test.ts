@@ -13,12 +13,26 @@ function createParser(): CSVParser {
   });
 }
 
-function parseLines(lines: string[]) {
-  const tempFile = path.join(__dirname, 'temp-test.csv');
+let tempFileCounter = 0;
+
+async function parseLines(lines: string[]) {
+  const tempFile = path.join(__dirname, `temp-test-${process.pid}-${tempFileCounter++}.csv`);
   writeFileSync(tempFile, lines.join('\n'));
 
   try {
-    return createParser().parseFile(tempFile);
+    // Windows AV can briefly lock a freshly written file (EPERM/ENOENT); retry.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        return await createParser().parseFile(tempFile);
+      } catch (error) {
+        const message = (error as Error).message;
+        const transient = message.includes('EPERM') || message.includes('ENOENT');
+        if (!transient || attempt === 4) {
+          throw error;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
   } finally {
     if (existsSync(tempFile)) {
       unlinkSync(tempFile);

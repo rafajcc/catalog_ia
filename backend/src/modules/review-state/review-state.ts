@@ -19,6 +19,7 @@ export class ReviewStateManager {
     logger.info('Initializing product review', { productCount: products.length });
 
     const productEdits: ProductEditState[] = products.map(product => this.createProductEditState(product));
+    this.products = productEdits;
 
     const reviewState: ReviewState = {
       products: productEdits,

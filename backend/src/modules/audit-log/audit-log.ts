@@ -82,8 +82,9 @@ export class AuditLogger {
     this.cleanOldLogs(entityType);
 
     // Limit log size
-    if (entityLogs.length > 1000) {
-      entityLogs.splice(0, entityLogs.length - 1000);
+    const limitedLogs = this.logs.get(entityType)!;
+    if (limitedLogs.length > 1000) {
+      this.logs.set(entityType, limitedLogs.slice(-1000));
     }
   }
 

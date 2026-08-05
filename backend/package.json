@@ -13,6 +13,12 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:csv": "jest --testPathPattern=csv-parser",
+    "test:validator": "jest --testPathPattern=validator",
+    "test:normalizer": "jest --testPathPattern=product-normalizer",
+    "test:image-matcher": "jest --testPathPattern=image-matcher",
+    "test:image-ranker": "jest --testPathPattern=image-ranker",
+    "test:review-state": "jest --testPathPattern=review-state",
+    "test:audit-log": "jest --testPathPattern=audit-log",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write src/"
   },
