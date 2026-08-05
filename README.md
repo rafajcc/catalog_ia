@@ -51,8 +51,8 @@ To overcome browser security limitations for reading arbitrary files:
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/username/CatalogIA.git
-cd CatalogIA
+git clone https://github.com/rafajcc/catalog_ia.git
+cd catalog_ia
 ```
 
 2. Install backend dependencies:
@@ -309,31 +309,73 @@ The application supports flexible CSV column mapping:
 
 ## Development and Testing
 
-### Testing
-```bash
-# Backend tests
-cd backend
-npm test
+All backend commands run from the `backend/` folder:
 
-# Frontend tests
-cd frontend
+```bash
+cd backend
+```
+
+> **Windows (PowerShell):** if `npm` is blocked by the execution policy, use `npm.cmd` instead of `npm` in every command below. PowerShell may also show git/npm output in red — that is normal and does not mean the command failed.
+
+### Running the tests (Jest)
+
+Tests use **Jest + ts-jest** (configured in `backend/jest.config.js`). Test files are written in TypeScript and live in `test/` (e.g. `test/csv-parser.test.ts`); you can also place `*.test.ts` files next to the code under `backend/src/`.
+
+| Command | What it does |
+|---|---|
+| `npm test` | Runs the full test suite |
+| `npm run test:watch` | Runs tests in watch mode (re-runs on changes) |
+| `npm run test:csv` | Runs only the CSV parser tests |
+| `npm run test:coverage` | Runs tests with a coverage report |
+
+Example:
+
+```bash
+cd backend
 npm test
 ```
 
-### Code Quality
+To add a new test, create a file like `test/<module>.test.ts`:
+
+```ts
+import { CSVParser } from '../backend/src/modules/csv-parser/csv-parser';
+
+describe('CSVParser', () => {
+  it('parses a CSV file', async () => {
+    const parser = new CSVParser({ encoding: 'utf8' });
+    const result = await parser.parseFile('../examples/example-products.csv');
+    expect(result.valid_rows).toBeGreaterThan(0);
+  });
+});
+```
+
+### Code quality checks
+
+| Command | What it does |
+|---|---|
+| `npm run typecheck` | TypeScript type checking (`tsc --noEmit`) |
+| `npm run lint` | ESLint over `src/` |
+| `npm run lint:fix` | Auto-fix lint issues |
+
+### Running the application
+
 ```bash
-# Type checking
+cd backend
+npm run dev    # dev server with hot reload (http://localhost:3000)
+npm run build  # compile TypeScript to dist/
+npm start      # run the compiled build (run `npm run build` first)
+```
+
+### Frontend
+
+The frontend has its own scripts under `frontend/` (`npm run dev`, `npm test`, `npm run typecheck`, `npm run lint`). Run them from the `frontend/` folder.
+
+### Suggested workflow before committing
+
+```bash
 cd backend
 npm run typecheck
-
-cd frontend
-npm run typecheck
-
-# Linting
-cd backend
-npm run lint
-
-cd frontend
+npm test
 npm run lint
 ```
 
