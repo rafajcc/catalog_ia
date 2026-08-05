@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - PrestaShop client XML responses were never parsed to objects (`xml2json` returns a JSON string), so `resolveProduct`/`resolveStockAvailable` always returned `null` and `createProduct` read undefined ids. The parsed response is now unwrapped and normalized (single/multiple results, `_attributes`/`_cdata`/`_text` extraction).
 - Product image uploads always failed because `formdata-node` rejects raw Buffers; the file buffer is now wrapped in a `Blob`.
+- Image uploads used a hardcoded `/tmp/product_<id>_image_<n>.jpg` placeholder path; they now upload the actual file path from the selected image.
 
 ## [0.1.0] - 2026-08-05
 

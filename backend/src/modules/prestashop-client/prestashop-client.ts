@@ -357,7 +357,7 @@ export class PrestaShopClient {
           const imageUpload: PrestaShopImageUpload = {
             id_product: result.product_id!,
             position: i + 1,
-            file: `/tmp/product_${result.product_id}_image_${i}.jpg` // Simplified path
+            file: product.selected_images[i].path
           };
 
           const imageResult = await this.uploadProductImage(imageUpload);

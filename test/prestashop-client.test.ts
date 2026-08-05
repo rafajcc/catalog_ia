@@ -458,18 +458,24 @@ describe('PrestaShopClient', () => {
     });
 
     it('uploads selected images up to a maximum of 5', async () => {
-      jest.spyOn(require('fs'), 'readFileSync').mockReturnValue(Buffer.from('fake-jpeg-bytes') as never);
+      const readFileSpy = jest.spyOn(require('fs'), 'readFileSync').mockReturnValue(Buffer.from('fake-jpeg-bytes') as never);
       const fake = makeFakeClient();
       fake.get.mockResolvedValueOnce({ data: productFoundXml });
       fake.patch.mockResolvedValueOnce({ data: '<prestashop><product id="9"/></prestashop>' });
       fake.post.mockResolvedValue({ data: '<prestashop/>' });
       const client = makeClient(fake);
 
-      const images = Array.from({ length: 6 }, (_, i) => `/tmp/product_9_image_${i}.jpg`);
+      const images = Array.from({ length: 6 }, (_, i) => ({
+        filename: `image_${i}.jpg`,
+        path: `/tmp/img/image_${i}.jpg`,
+        format: 'jpg'
+      }));
       const result = await client.syncSingleProduct({ ...product, selected_images: images as any });
 
       expect(fake.post).toHaveBeenCalledTimes(5);
       expect(result.images_uploaded).toBe(5);
+      expect(readFileSpy).toHaveBeenCalledWith('/tmp/img/image_0.jpg');
+      expect(readFileSpy).toHaveBeenCalledWith('/tmp/img/image_4.jpg');
     });
 
     it('returns a failure result when product resolution fails', async () => {
