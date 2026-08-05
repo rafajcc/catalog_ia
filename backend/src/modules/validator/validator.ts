@@ -1,7 +1,5 @@
-"""
-Validator Module
-Validates products for required fields, data integrity, and business rules.
-"""
+// Validator Module
+// Validates products for required fields, data integrity, and business rules.
 
 import { 
   ProductData, 
@@ -9,7 +7,7 @@ import {
   ValidationResult,
   ValidationContext,
   ValidationRule
-} from '../types';
+} from '../../types';
 
 export class ProductValidator {
   private rules: ValidationRule[];

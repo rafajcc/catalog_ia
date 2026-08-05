@@ -1,11 +1,9 @@
-"""
-Audit Log Module
-Comprehensive audit logging for compliance, troubleshooting, and accountability.
-"""
+// Audit Log Module
+// Comprehensive audit logging for compliance, troubleshooting, and accountability.
 
-import { ProductData, SyncOperation, SyncResult, AuditLogEntry, AuditChange } from '../types';
+import { ProductData, SyncOperation, SyncResult, AuditLogEntry, AuditChange } from '../../types';
 import { nanoid } from 'nanoid';
-import { logger } from '../utils/logger';
+import { logger } from '../../utils/logger';
 
 export class AuditLogger {
   private logLevel: string;
@@ -208,6 +206,8 @@ export class AuditLogger {
       top_actions: [] as Array<{ action: string; count: number }>
     };
 
+    const userCounts: Record<string, number> = {};
+
     for (const log of relevantLogs) {
       // Count by action type
       const actionKey = log.action.split('_')[0];
@@ -224,12 +224,12 @@ export class AuditLogger {
 
       // Count by user
       if (log.user_id) {
-        summary.top_users[log.user_id] = (summary.top_users[log.user_id] || 0) + 1;
+        userCounts[log.user_id] = (userCounts[log.user_id] || 0) + 1;
       }
     }
 
     // Convert top_users to array and sort
-    summary.top_users = Object.entries(summary.top_users)
+    summary.top_users = Object.entries(userCounts)
       .map(([user_id, operations]) => ({ user_id, operations }))
       .sort((a, b) => b.operations - a.operations)
       .slice(0, 10);

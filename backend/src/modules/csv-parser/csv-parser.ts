@@ -1,19 +1,19 @@
-"""
-CSV Parser Module
-Handles CSV file reading with encoding detection and field normalization.
-"""
+// CSV Parser Module
+// Handles CSV file reading with encoding detection and field normalization.
 
-import * as fs from 'fs-extra';
-import * as path from 'path';
-import { detect } from 'encoding-japanese';
-import { logger } from '../utils/logger';
-import { 
-  ParsedRow, 
-  CSVConfig, 
+import fs from 'fs-extra';
+import { logger } from '../../utils/logger';
+import {
+  ParsedRow,
+  CSVConfig,
   CSVResult,
   ProductField,
-  ValidationError
-} from '../types';
+  ValidationError,
+  ProductData
+} from '../../types';
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { detect } = require('encoding-japanese') as { detect: (data: Uint8Array) => string };
 
 export class CSVParser {
   private config: CSVConfig;
@@ -31,7 +31,7 @@ export class CSVParser {
   private getDefaultFieldMapping(): Record<string, ProductField> {
     return {
       'ean': 'ean',
-      'ean13': 'ean13',
+      'ean13': 'ean',
       'reference': 'reference',
       'sku': 'sku',
       'name': 'name',
@@ -40,7 +40,7 @@ export class CSVParser {
       'price': 'price',
       'wholesale_price': 'wholesale_price',
       'quantity': 'quantity',
-      'stock': 'stock',
+      'stock': 'quantity',
       'brand': 'brand',
       'manufacturer': 'manufacturer',
       'category': 'category',
@@ -52,10 +52,10 @@ export class CSVParser {
 
   async parseFile(filePath: string): Promise<CSVResult> {
     const startTime = Date.now();
-    
+
     try {
-      logger.info('Starting CSV file parsing', { 
-        filePath, 
+      logger.info('Starting CSV file parsing', {
+        filePath,
         delimiter: this.config.delimiter,
         skipEmptyRows: this.config.skip_empty_rows
       });
@@ -93,16 +93,19 @@ export class CSVParser {
     }
   }
 
-  private async detectEncoding(buffer: Buffer): Promise<string> {
+  private async detectEncoding(buffer: Buffer): Promise<BufferEncoding> {
     try {
-      const result = detect(buffer);
-      if (result.encoding && result.encoding !== 'unknown') {
-        return result.encoding;
+      const detected = detect(buffer);
+      const normalized = (detected || '').toLowerCase();
+
+      // ASCII is a subset of UTF-8; treat it as the configured default
+      if (normalized && normalized !== 'unknown' && normalized !== 'ascii') {
+        return normalized as BufferEncoding;
       }
     } catch (error) {
       logger.warn('Encoding detection failed, using default', { error });
     }
-    return this.config.encoding;
+    return this.config.encoding as BufferEncoding;
   }
 
   private parseContent(content: string, encoding: string): string[] {
@@ -117,7 +120,7 @@ export class CSVParser {
 
   private extractHeaders(firstLine: string): string[] {
     let headers = firstLine.split(this.config.delimiter);
-    
+
     if (!this.config.headers_case_sensitive) {
       headers = headers.map(header => header.trim().toLowerCase());
     } else {
@@ -133,16 +136,19 @@ export class CSVParser {
     for (let i = 1; i <= lines.length; i++) {
       const line = lines[i - 1];
       const rawValues = this.parseLine(line);
+      const raw = this.mapToObject(headers, rawValues);
       const normalized = this.normalizeRow(rawValues, headers);
-      const errors = this.validateRow(normalized);
+      const errors = this.validateRow(normalized, raw);
 
       rows.push({
-        raw: this.mapToObject(headers, rawValues),
+        raw,
         normalized,
         errors,
         warnings: []
       });
     }
+
+    this.markDuplicates(rows);
 
     return rows;
   }
@@ -154,11 +160,15 @@ export class CSVParser {
 
     for (let i = 0; i < line.length; i++) {
       const char = line[i];
-      const nextChar = line[i + 1];
 
       if (char === '"') {
-        inQuotes = !inQuotes;
-        current += char;
+        if (inQuotes && line[i + 1] === '"') {
+          // Escaped quote inside a quoted field ("")
+          current += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
       } else if (char === this.config.delimiter && !inQuotes) {
         values.push(current.trim());
         current = '';
@@ -171,8 +181,8 @@ export class CSVParser {
     return values;
   }
 
-  private normalizeRow(rawValues: string[], headers: string[]): Partial<typeof ProductData> {
-    const normalized: Partial<typeof ProductData> = {};
+  private normalizeRow(rawValues: string[], headers: string[]): Partial<ProductData> {
+    const normalized: Partial<ProductData> = {};
 
     for (let i = 0; i < Math.min(rawValues.length, headers.length); i++) {
       const header = headers[i];
@@ -180,9 +190,11 @@ export class CSVParser {
 
       if (!rawValue) continue;
 
-      const field = this.config.headers_case_sensitive 
-        ? (header as ProductField)
-        : (header.toLowerCase() as ProductField);
+      const headerKey = this.config.headers_case_sensitive
+        ? header
+        : header.toLowerCase();
+
+      const field = this.config.field_mapping[headerKey] || (headerKey as ProductField);
 
       const normalizedValue = this.normalizeFieldValue(field, rawValue);
       normalized[field] = normalizedValue;
@@ -250,7 +262,7 @@ export class CSVParser {
     return obj;
   }
 
-  private validateRow(row: Partial<typeof ProductData>): ValidationError[] {
+  private validateRow(row: Partial<ProductData>, raw: Record<string, string>): ValidationError[] {
     const errors: ValidationError[] = [];
 
     if (!row.name) {
@@ -263,42 +275,71 @@ export class CSVParser {
       });
     }
 
-    if (row.ean) {
-      if (!this.validateEAN(row.ean)) {
-        errors.push({
-          field: 'ean',
-          message: 'Invalid EAN format (must be 8 or 13 digits)',
-          code: 'INVALID_EAN',
-          severity: 'error',
-          value: row.ean
-        });
-      }
-    }
-
-    if (row.price !== undefined && row.price < 0) {
+    const rawEan = (raw['ean'] || raw['ean13'] || '').trim();
+    if (rawEan && !row.ean) {
       errors.push({
-        field: 'price',
-        message: 'Price cannot be negative',
-        code: 'INVALID_PRICE',
+        field: 'ean',
+        message: 'Invalid EAN format (must be 8 or 13 digits)',
+        code: 'INVALID_EAN',
         severity: 'error',
-        value: row.price
+        value: rawEan
       });
     }
 
-    if (row.quantity !== undefined && row.quantity < 0) {
+    const rawPrice = (raw['price'] || '').trim();
+    if (rawPrice && row.price === undefined) {
+      errors.push({
+        field: 'price',
+        message: 'Price must be a non-negative number',
+        code: 'INVALID_PRICE',
+        severity: 'error',
+        value: rawPrice
+      });
+    }
+
+    const rawQuantity = (raw['quantity'] || raw['stock'] || '').trim();
+    if (rawQuantity && row.quantity === undefined) {
       errors.push({
         field: 'quantity',
-        message: 'Stock quantity cannot be negative',
+        message: 'Stock quantity must be a non-negative integer',
         code: 'INVALID_QUANTITY',
         severity: 'error',
-        value: row.quantity
+        value: rawQuantity
       });
     }
 
     return errors;
   }
 
+  private markDuplicates(rows: ParsedRow[]): void {
+    const seen = new Map<string, number>();
+
+    rows.forEach((row, index) => {
+      const keys: Array<{ field: string; key: string }> = [];
+      if (row.normalized.ean) keys.push({ field: 'ean', key: `ean:${row.normalized.ean}` });
+      if (row.normalized.ean13) keys.push({ field: 'ean', key: `ean:${row.normalized.ean13}` });
+      if (row.normalized.reference) keys.push({ field: 'reference', key: `ref:${row.normalized.reference}` });
+
+      for (const entry of keys) {
+        if (seen.has(entry.key)) {
+          const label = entry.field === 'ean' ? 'EAN' : 'reference';
+          const value = entry.key.split(':')[1];
+          row.errors.push({
+            field: entry.field,
+            message: `Duplicate ${label} '${value}' already exists in this file`,
+            code: 'DUPLICATE_VALUE',
+            severity: 'error',
+            value
+          });
+        } else {
+          seen.set(entry.key, index);
+        }
+      }
+    });
+  }
+
   private validateEAN(ean: string): boolean {
+    if (!ean) return false;
     const cleaned = ean.replace(/[^0-9]/g, '');
     return [8, 13].includes(cleaned.length);
   }

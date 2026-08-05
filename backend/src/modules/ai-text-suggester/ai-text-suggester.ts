@@ -1,9 +1,7 @@
-"""
-AI Text Suggester Module
-Generates and suggests product text content using configurable AI providers.
-"""
+// AI Text Suggester Module
+// Generates and suggests product text content using configurable AI providers.
 
-import { ProductData, AIConfig, AIRequest, AIResponse, AIContentField } from '../types';
+import { ProductData, AIConfig, AIRequest, AIResponse, AIContentField } from '../../types';
 
 export class AITextSuggester {
   private config: AIConfig;
@@ -29,12 +27,14 @@ export class AITextSuggester {
     }
   }
 
-  async generateSuggestions(product: ProductData, field: AIContentField): Promise<AIResponse[]> {
+  async generateSuggestions(product: ProductData, field?: AIContentField): Promise<AIResponse[]> {
     const suggestions: AIResponse[] = [];
 
-    for (const field of this.config.enabled_fields) {
-      if (!product[field as keyof ProductData]) {
-        const suggestion = await this.generateSingleSuggestion(product, field);
+    const targetFields = field ? [field] : this.config.enabled_fields;
+
+    for (const targetField of targetFields) {
+      if (!product[targetField as keyof ProductData]) {
+        const suggestion = await this.generateSingleSuggestion(product, targetField);
         if (suggestion) {
           suggestions.push(suggestion);
         }
@@ -237,7 +237,8 @@ export class AITextSuggester {
 
   private containsSpecifications(text: string): boolean {
     const specKeywords = ['mm', 'cm', 'kg', 'g', 'liters', 'watt', 'hz', 'inch', 'px', 'resolution', 'megapixel'];
-    const normalizedText = text.toLowerCase();n    return specKeywords.some(keyword => normalizedText.includes(keyword));
+    const normalizedText = text.toLowerCase();
+    return specKeywords.some(keyword => normalizedText.includes(keyword));
   }
 
   async cacheSuggestions(key: string, suggestions: AIResponse[]): Promise<void> {
@@ -297,7 +298,7 @@ class OpenAIProvider extends AIProvider {
 
     Generated text:`;
 
-    return prompt;
+    return context;
   }
 
   private async callOpenAI(prompt: string): Promise<any> {

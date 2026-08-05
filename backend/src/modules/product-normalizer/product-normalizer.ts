@@ -1,13 +1,11 @@
-"""
-Product Normalizer Module
-Normalizes and standardizes product data from CSV parsing.
-"""
+// Product Normalizer Module
+// Normalizes and standardizes product data from CSV parsing.
 
 import { 
   ProductData, 
   ParsedRow,
   ValidationError
-} from '../types';
+} from '../../types';
 
 export class ProductNormalizer {
   private fieldMappings: Map<string, string>;
@@ -75,11 +73,11 @@ export class ProductNormalizer {
   }
 
   private transformRowData(data: Partial<ProductData>): ProductData {
-    const product: ProductData = {
+    const product = {
       id: this.generateProductId(data),
       ...this.defaultValues,
       ...data
-    };
+    } as ProductData;
 
     // Apply transformations in sequence
     for (const transform of this.transformations) {

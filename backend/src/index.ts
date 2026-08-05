@@ -1,16 +1,17 @@
-"""
-Main entry point for the CatalogIA backend application.
-"""
+// Main entry point for the CatalogIA backend application.
 
-import app from './app';
+import createApp from './app';
 import { AppError, ErrorHandler } from './utils/error-handler';
 import { logger } from './utils/logger';
+import type { Server } from 'http';
 
 const PORT = process.env.PORT || 3000;
+const app = createApp();
+let server: Server | undefined;
 
 const startServer = async (): Promise<void> => {
   try {
-    app.listen(PORT, () => {
+    server = app.listen(PORT, () => {
       logger.info(`Server started on port ${PORT}`, { port: PORT });
     });
   } catch (error) {
@@ -23,12 +24,14 @@ const gracefulShutdown = async (): Promise<void> => {
   logger.info('Received shutdown signal, shutting down gracefully');
 
   try {
-    await new Promise<void>((resolve) => {
-      app.close(() => {
-        logger.info('Server closed');
-        resolve();
+    if (server) {
+      await new Promise<void>((resolve) => {
+        server?.close(() => {
+          logger.info('Server closed');
+          resolve();
+        });
       });
-    });
+    }
     process.exit(0);
   } catch (error) {
     logger.error('Error during shutdown', { error });

@@ -1,10 +1,8 @@
-"""
-Image Matcher Module
-Matches product data with image files using EAN, reference, and filename patterns.
-"""
+// Image Matcher Module
+// Matches product data with image files using EAN, reference, and filename patterns.
 
 import path from 'path';
-import { ImageFile, ImageMatchResult, ImageMatchStrategy, ProductData, EAN, Reference } from '../types';
+import { ImageFile, ImageMatchResult, ImageMatchStrategy, ProductData, EAN, Reference } from '../../types';
 
 export class ImageMatcher {
   private strategies: ImageMatchStrategy[];
@@ -192,7 +190,7 @@ export class ImageMatcher {
 
     // Check if EAN appears as a whole number in filename
     const patterns = [
-      new RegExp(`\b${normalizedEAN}\b`),
+      new RegExp(`\\b${normalizedEAN}\\b`),
       new RegExp(normalizedEAN),
       new RegExp(`product${normalizedEAN}`),
       new RegExp(`${normalizedEAN}-`), // EAN followed by dash

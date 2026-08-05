@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Test artifacts
+coverage/
+*.tmp
+temp-test.csv
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

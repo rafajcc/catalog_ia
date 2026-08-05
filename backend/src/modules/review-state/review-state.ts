@@ -1,10 +1,8 @@
-"""
-Review State Module
-Manages editable review state for products before synchronization.
-"""
+// Review State Module
+// Manages editable review state for products before synchronization.
 
-import { ProductData, ProductEditState, EditField, ReviewState, ReviewFilters, BatchAction, ReviewDiff } from '../types';
-import { logger } from '../utils/logger';
+import { ProductData, ProductEditState, EditField, ReviewState, ReviewFilters, BatchAction, ReviewDiff } from '../../types';
+import { logger } from '../../utils/logger';
 
 export class ReviewStateManager {
   private products: ProductEditState[];

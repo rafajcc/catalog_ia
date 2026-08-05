@@ -1,14 +1,12 @@
-"""
-Sync Service Module
-Main synchronization service coordinating all sync operations with dry-run support.
-"""
+// Sync Service Module
+// Main synchronization service coordinating all sync operations with dry-run support.
 
-import { ProductData, SyncPlan, SyncOperation, SyncResult, SyncConfig, SyncSession } from '../types';
-import { PrestaShopClient } from './prestashop-client';
-import { AITextSuggester } from './ai-text-suggester';
-import { ImageMatcher } from './image-matcher';
-import { ImageRanker } from './image-ranker';
-import { logger } from '../utils/logger';
+import { ProductData, SyncPlan, SyncOperation, SyncResult, SyncConfig, SyncSession } from '../../types';
+import { PrestaShopClient } from '../prestashop-client/prestashop-client';
+import { AITextSuggester } from '../ai-text-suggester/ai-text-suggester';
+import { ImageMatcher } from '../image-matcher/image-matcher';
+import { ImageRanker } from '../image-ranker/image-ranker';
+import { logger } from '../../utils/logger';
 
 export class SyncService {
   private prestashopClient: PrestaShopClient;
@@ -91,8 +89,8 @@ export class SyncService {
       logger.info('Sync session completed', {
         sessionId: session.id,
         totalOperations: results.length,
-        successfulOperations: results.filter(r => r.success).length,
-        failedOperations: results.filter(r => !r.success).length
+        successfulOperations: results.filter(r => r.status === 'completed').length,
+        failedOperations: results.filter(r => r.status === 'failed').length
       });
 
     } catch (error) {

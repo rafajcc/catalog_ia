@@ -1,9 +1,7 @@
-"""
-Image Ranker Module
-Selects the most relevant images for each product based on matching scores and quality metrics.
-"""
+// Image Ranker Module
+// Selects the most relevant images for each product based on matching scores and quality metrics.
 
-import { ImageFile, ImageCandidate, ImageSelectionConfig, ProductData } from '../types';
+import { ImageFile, ImageCandidate, ImageSelectionConfig, ProductData } from '../../types';
 
 export class ImageRanker {
   private config: ImageSelectionConfig;
@@ -45,7 +43,7 @@ export class ImageRanker {
     score += candidate.score * 0.7;
 
     // Quality component (20% weight)
-    score += this.calculateQualityScore(candidate.file) * 0.2;
+    score += this.calculateQualityScore(candidate) * 0.2;
 
     // Variety component (10% weight)
     score += this.calculateVarietyScore(candidate, availableFiles) * 0.1;
@@ -78,10 +76,10 @@ export class ImageRanker {
   private calculateVarietyScore(candidate: ImageCandidate, availableFiles: ImageFile[]): number {
     // Count similar images (same directory, similar size, same format)
     const similarCount = availableFiles.filter(file => 
-      file.path === candidate.file.path ||
-      (file.width && candidate.file.width && 
-       Math.abs(file.width - candidate.file.width) < 100) ||
-      file.format === candidate.file.format
+      file.path === candidate.path ||
+      (file.width && candidate.width && 
+       Math.abs(file.width - candidate.width) < 100) ||
+      file.format === candidate.format
     ).length;
 
     // Lower variety score for many similar images
@@ -108,11 +106,11 @@ export class ImageRanker {
       }
 
       // Check if this image would be too similar to already selected ones
-      if (this.isTooSimilar(candidate.file, selected)) {
+      if (this.isTooSimilar(candidate, selected)) {
         continue;
       }
 
-      selected.push(candidate.file);
+      selected.push(candidate);
     }
 
     return selected;

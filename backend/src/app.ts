@@ -1,6 +1,4 @@
-"""
-Main Express application setup
-"""
+// Main Express application setup
 
 import express from 'express';
 import cors from 'cors';

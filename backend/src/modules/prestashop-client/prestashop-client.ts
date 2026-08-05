@@ -1,14 +1,13 @@
-"""
-PrestaShop Client Module
-Handles all Webservice API interactions with PrestaShop (XML and multipart).
-Supports PrestaShop 1.7+ with proper error handling and authentication.
-"""
+// PrestaShop Client Module
+// Handles all Webservice API interactions with PrestaShop (XML and multipart).
+// Supports PrestaShop 1.7+ with proper error handling and authentication.
 
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import { xml2json, json2xml } from 'xml-js';
 import { FormData } from 'formdata-node';
 import { readFileSync } from 'fs';
-import { logger } from '../utils/logger';
+import path from 'path';
+import { logger } from '../../utils/logger';
 import {
   PrestaShopConfig,
   PrestaShopProduct,
@@ -20,7 +19,7 @@ import {
   ProductId,
   EAN,
   Reference
-} from '../types';
+} from '../../types';
 
 export class PrestaShopClient {
   private client: AxiosInstance;
@@ -59,10 +58,7 @@ export class PrestaShopClient {
   private setupInterceptors(): void {
     this.client.interceptors.request.use(
       (config) => {
-        config.headers = {
-          ...config.headers,
-          'Authorization': `Bearer ${this.config.api_key}`
-        };
+        config.headers['Authorization'] = `Bearer ${this.config.api_key}`;
         return config;
       },
       (error) => Promise.reject(error)
@@ -249,10 +245,7 @@ export class PrestaShopClient {
 
       // Add image file
       const fileBuffer = readFileSync(imageData.file);
-      formData.append('image', fileBuffer, {
-        filename: path.basename(imageData.file),
-        contentType: 'image/jpeg'
-      });
+      formData.append('image', fileBuffer as unknown as Blob, path.basename(imageData.file));
 
       // Add image metadata
       formData.append('position', imageData.position?.toString() || '0');
@@ -426,7 +419,7 @@ export class PrestaShopClient {
       .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-')
-      .trim('-');
+      .replace(/^-+|-+$/g, '');
   }
 
   async testConnection(): Promise<boolean> {
