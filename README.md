@@ -1,0 +1,394 @@
+# CatalogIA - PrestaShop Product Synchronization
+
+A complete desktop application for preparing and uploading products to PrestaShop using its Webservice API.
+
+## Overview
+
+CatalogIA is a full-stack application designed to streamline the product catalog management process for PrestaShop stores. It enables users to:
+- Import products from CSV files
+- Select and associate images with products
+- Generate missing or deficient product descriptions using AI
+- Review and edit all changes before syncing
+- Synchronize products, stock levels, and images to PrestaShop
+
+## Architecture Decisions
+
+### Backend (Node.js + TypeScript)
+
+The backend handles all business logic, file operations, and API communication:
+
+1. **Server Architecture**: Express.js provides a lightweight, scalable web framework
+2. **Module System**: Clear separation of concerns with each module having a single responsibility
+3. **File Handling**: Local file system operations for CSV and image management
+4. **No Database**: State is managed in-memory and persisted to disk via logs and state files
+5. **Security**: All credentials are stored in environment variables, never exposed in frontend
+
+### Frontend (React + TypeScript)
+
+The frontend provides the user interface and visual feedback:
+
+1. **Component-Based**: Modular React components for each screen/purpose
+2. **State Management**: React state and context API for application state
+3. **Real-time Updates**: WebSocket or polling for progress tracking
+4. **Responsive Design**: Mobile and desktop compatible interface
+
+### File Selection Strategy
+
+To overcome browser security limitations for reading arbitrary files:
+- Use a Node.js backend that handles file uploads via HTTP endpoints
+- Frontend provides file selection through standard HTML file inputs
+- Backend processes files and stores temporary copies
+- This ensures proper security and cross-platform compatibility
+
+## Installation and Setup
+
+### Prerequisites
+- Node.js 18+ (for both backend and frontend)
+- TypeScript compiler
+- Git for version control
+
+### Installation Steps
+
+1. Clone the repository:
+```bash
+git clone https://github.com/username/CatalogIA.git
+cd CatalogIA
+```
+
+2. Install backend dependencies:
+```bash
+cd backend
+npm install
+```
+
+3. Install frontend dependencies:
+```bash
+cd ../frontend
+npm install
+```
+
+4. Create environment file:
+```bash
+cp backend/.env.example backend/.env
+```
+
+5. Configure environment variables in `backend/.env`:
+```dotenv
+# PrestaShop Configuration
+PRESTASHOP_BASE_URL=https://your-shop.com
+PRESTASHOP_API_KEY=your-api-key-here
+PRESTASHOP_LANGUAGE=1 (default language ID)
+
+# AI Provider Configuration (optional)
+AI_PROVIDER=openai
+AI_API_KEY=your-openai-key-here
+AI_MODEL=gpt-4-turbo
+AI_MAX_TOKENS=1000
+
+# Application Configuration
+DRY_RUN=true (set to false to actually sync)
+UPLOAD_DIR=./uploads
+LOG_DIR=./logs
+PORT=3000
+FRONTEND_URL=http://localhost:5173
+
+# Image Processing
+MAX_IMAGES_PER_PRODUCT=5
+IMAGE_MIN_SIZE=1024 (minimum image dimension)
+IMAGE_ALLOWED_FORMATS=image/jpeg,image/png,image/webp
+```
+
+### Running the Application
+
+1. Start the backend:
+```bash
+cd backend
+npm run dev
+```
+
+2. Start the frontend:
+```bash
+cd frontend
+npm run dev
+```
+
+3. Open your browser and navigate to `http://localhost:5173`
+
+## Project Structure
+
+### Backend
+```
+backend/
+├── src/
+│   ├── index.ts           # Main entry point
+│   ├── app.ts            # Express application setup
+│   ├── utils/           # Shared utilities
+│   │   └── logger.ts     # Logging configuration
+│   └── modules/         # Business logic modules
+│       ├── csv-parser/        # CSV parsing and encoding detection
+│       ├── validator/        # Product validation logic
+│       ├── product-normalizer/ # Field normalization
+│       ├── image-matcher/   # Image product matching
+│       ├── image-ranker/    # Image selection logic
+│       ├── ai-text-suggester/ # AI text generation
+│       ├── prestashop-client/ # PrestaShop Webservice API client
+│       ├── sync-service/   # Main synchronization service
+│       ├── review-state/   # Editable review state management
+│       └── audit-log/      # Audit logging
+├── package.json
+├── .env.example
+└── .gitignore
+```
+
+### Frontend
+```
+frontend/
+├── src/
+│   ├── main.tsx          # React entry point
+│   ├── types/            # TypeScript type definitions
+│   ├── hooks/           # Custom React hooks
+│   ├── utils/            # Utility functions
+│   ├── components/       # UI components
+│   │   ├── layout/          # Main application layout
+│   │   ├── configuration/   # Settings for PrestaShop and AI
+│   │   ├── data-upload/    # CSV and image selection
+│   │   ├── validation/     # Validation results display
+│   │   ├── image-matching/ # Image selection interface
+│   │   ├── ai-suggestions/ # AI text editing
+│   │   ├── review/        # Final review screen
+│   │   └── sync/          # Sync progress and results
+│   ├── pages/            # Page components
+│   │   └── dashboard/      # Main dashboard
+│   ├── services/          # API service layer
+│   ├── styles/           # CSS styles
+│   └── public/           # Static assets
+├── package.json
+├── vite.config.ts
+└── tailwind.config.js
+```
+
+### Examples and Documentation
+```
+examples/
+├── example-products.csv    # Sample CSV file
+└── example-images/         # Sample images directory
+
+docs/                      # Documentation
+├── README.md              # Project overview
+├── SETUP_GUIDE.md         # Detailed setup instructions
+└── API_REFERENCE.md       # API documentation
+```
+
+## PrestaShop Compatibility
+
+### Supported PrestaShop Versions
+- PrestaShop 1.7.x
+- PrestaShop 2.0.x
+- PrestaShop 2.1.x
+- PrestaShop 2.2.x
+
+### Webservice API Features
+
+1. **Product Operations**
+   - GET product by reference or EAN
+   - Create/update products via PUT/PATCH
+   - Retrieve stock information
+
+2. **Stock Management**
+   - Update stock levels via stock_availables
+   - Handle multiple combinations
+
+3. **Image Management**
+   - Upload product images via multipart/form-data
+   - Associate images with products
+
+4. **Language Support**
+   - Configurable default language
+   - Multi-language support for fields
+
+### API Implementation Details
+
+- **XML Support**: All product and stock operations use XML
+- **Multipart Upload**: Image uploads use multipart/form-data
+- **Authentication**: Webservice API key authentication
+- **Error Handling**: Comprehensive error handling with retry logic
+
+## Features
+
+### 1. Configuration
+- PrestaShop connection settings
+- AI provider configuration
+- CSV field mapping
+- Language and currency settings
+- Dry-run mode toggle
+
+### 2. Data Upload
+- CSV file selection and parsing
+- Image folder selection
+- Encoding detection for CSV files
+- Preview of first rows
+
+### 3. Validation
+- Required field validation
+- EAN/ISBN validation
+- Stock and price validation
+- Duplicate detection
+- Missing data detection
+
+### 4. Image Matching
+- EAN/reference-based matching
+- Multi-pattern matching support
+- AI-powered image selection (optional)
+- Fallback to deterministic matching
+
+### 5. AI Text Generation
+- Configurable AI providers (OpenAI, Anthropic, Mock)
+- Text quality and length validation
+- SEO-friendly suggestions
+- Editable suggestions interface
+
+### 6. Review Interface
+- Complete product preview
+- Editable fields (titles, descriptions, stock, images)
+- Batch operations (accept/reject)
+- Validation status indicators
+
+### 7. Synchronization
+- Batch processing with progress tracking
+- Retry logic for failed operations
+- Comprehensive audit logging
+- Detailed progress reports
+
+## Security and Robustness
+
+### Security Measures
+- Backend secures all credentials
+- Input sanitization for all user inputs
+- File type validation for uploads
+- Rate limiting for API endpoints
+- Secure session management
+
+### Error Handling
+- Comprehensive error logging
+- Graceful failure handling
+- Detailed error messages
+- Retry mechanisms
+- Circuit breakers for API failures
+
+## Configuration
+
+### CSV Field Mapping
+The application supports flexible CSV column mapping:
+- `ean` / `ean13` - Product EAN/ISBN
+- `reference` / `sku` - Product reference/SKU
+- `name` - Product name
+- `description_short` - Short description
+- `description` - Full description
+- `price` - Price
+- `wholesale_price` - Wholesale price
+- `quantity` / `stock` - Stock quantity
+- `brand` - Brand name
+- `manufacturer` - Manufacturer
+- `category` - Product category
+- `tax` - Tax rate
+- `weight` - Product weight
+- `image_hints` - Image file naming hints
+
+### AI Provider Support
+- **OpenAI**: GPT-4, GPT-3.5 models
+- **Anthropic**: Claude models
+- **Mock**: For testing without API costs
+- **OpenRouter**: Access to multiple providers
+
+### Image Processing
+- Configurable maximum images per product
+- Image quality validation
+- Format support (JPEG, PNG, WebP)
+- Size validation
+- Duplicate detection
+
+## Development and Testing
+
+### Testing
+```bash
+# Backend tests
+cd backend
+npm test
+
+# Frontend tests
+cd frontend
+npm test
+```
+
+### Code Quality
+```bash
+# Type checking
+cd backend
+npm run typecheck
+
+cd frontend
+npm run typecheck
+
+# Linting
+cd backend
+npm run lint
+
+cd frontend
+npm run lint
+```
+
+### Environment Types
+- **Development**: Full features, hot reload, debugging
+- **Testing**: Mock data, test API endpoints
+- **Production**: Optimized, error handling, logging
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Port Conflicts**
+   - Change the port in `.env` files
+   - Use `PORT=3001` or similar
+
+2. **CORS Errors**
+   - Configure `FRONTEND_URL` correctly
+   - Check if frontend is running on expected port
+
+3. **API Authentication**
+   - Verify PrestaShop API key is correct
+   - Check if API key has necessary permissions
+
+4. **File Upload Issues**
+   - Ensure files are not too large
+   - Check file encoding for CSV files
+
+## Contributing
+
+### Code Standards
+- TypeScript with strict type checking
+- ESLint for code quality
+- Prettier for code formatting
+- Jest for testing
+
+### Pull Request Process
+1. Fork the repository
+2. Create a feature branch
+3. Commit changes with descriptive messages
+4. Push to your branch
+5. Create a pull request
+
+## License
+
+MIT License - See LICENSE file for details
+
+## Support
+
+For issues, please visit the GitHub repository or create an issue in the issue tracker.
+
+## Changelog
+
+See CHANGELOG.md for recent updates and new features
+
+---
+
+*This project is designed to be a complete, production-ready solution for PrestaShop product catalog synchronization with comprehensive features and robust error handling.*
