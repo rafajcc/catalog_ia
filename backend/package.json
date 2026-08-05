@@ -11,7 +11,8 @@
     "lint:fix": "eslint src --ext .ts --fix",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:csv": "node ../test/start-test.js",
+    "test:coverage": "jest --coverage",
+    "test:csv": "jest --testPathPattern=csv-parser",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write src/"
   },

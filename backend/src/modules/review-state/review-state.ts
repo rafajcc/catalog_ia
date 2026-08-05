@@ -129,7 +129,7 @@ export class ReviewStateManager {
       description: { type: 'string', max: 5000 },
       meta_title: { type: 'string', max: 60 },
       meta_description: { type: 'string', max: 160 },
-      link_rewrite: { type: 'string', pattern: /^[a-z0-9\-]+/ },
+      link_rewrite: { type: 'string', pattern: /^[a-z0-9-]+/ },
       price: { type: 'number', min: 0, max: 1000000 },
       quantity: { type: 'integer', min: 0, max: 1000000 },
       wholesale_price: { type: 'number', min: 0, max: 1000000 }
