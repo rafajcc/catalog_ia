@@ -127,3 +127,8 @@ table.data th {
   background: #eff6ff;
   color: #1e40af;
 }
+
+.chip.error {
+  background: #fef2f2;
+  color: #dc2626;
+}

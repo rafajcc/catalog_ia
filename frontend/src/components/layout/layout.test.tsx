@@ -10,9 +10,11 @@ describe('AppHeader', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Status: Online');
   });
 
-  it('shows an offline status', () => {
+  it('shows an offline status in red', () => {
     render(<AppHeader status="Offline" />);
-    expect(screen.getByRole('status')).toHaveTextContent('Offline');
+    const status = screen.getByRole('status');
+    expect(status).toHaveTextContent('Offline');
+    expect(status.querySelector('.chip')?.className).toContain('error');
   });
 });
 
