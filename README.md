@@ -224,9 +224,9 @@ frontend/
 │       └── dashboard/       # Main dashboard
 ├── package.json
 ├── .eslintrc.json
-├── jest.config.js
+├── jest.config.cjs
 ├── jest.setup.ts
-├── jest.styleMock.js
+├── jest.styleMock.cjs
 ├── tsconfig.json
 └── vite.config.ts
 ```

@@ -7,7 +7,7 @@ module.exports = {
   testMatch: ['**/*.test.ts', '**/*.test.tsx'],
   moduleNameMapper: {
     '^axios$': '<rootDir>/node_modules/axios',
-    '\\.(css|scss|sass)$': '<rootDir>/jest.styleMock.js'
+    '\\.(css|scss|sass)$': '<rootDir>/jest.styleMock.cjs'
   },
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
