@@ -4,8 +4,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import { logger } from './utils/logger';
-import { AppError, ErrorHandler } from './utils/error-handler';
+import { ErrorHandler } from './utils/error-handler';
 
 export default function createApp() {
   const app = express();

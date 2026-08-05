@@ -1,7 +1,7 @@
 // Audit Log Module
 // Comprehensive audit logging for compliance, troubleshooting, and accountability.
 
-import { ProductData, SyncOperation, SyncResult, AuditLogEntry, AuditChange } from '../../types';
+import { AuditLogEntry, AuditChange } from '../../types';
 import { nanoid } from 'nanoid';
 import { logger } from '../../utils/logger';
 

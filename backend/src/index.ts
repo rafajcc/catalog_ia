@@ -1,7 +1,7 @@
 // Main entry point for the CatalogIA backend application.
 
 import createApp from './app';
-import { AppError, ErrorHandler } from './utils/error-handler';
+import { ErrorHandler } from './utils/error-handler';
 import { logger } from './utils/logger';
 import type { Server } from 'http';
 

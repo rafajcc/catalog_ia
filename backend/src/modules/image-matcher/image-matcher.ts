@@ -1,7 +1,6 @@
 // Image Matcher Module
 // Matches product data with image files using EAN, reference, and filename patterns.
 
-import path from 'path';
 import { ImageFile, ImageMatchResult, ImageMatchStrategy, ProductData, EAN, Reference } from '../../types';
 
 export class ImageMatcher {
@@ -207,7 +206,7 @@ export class ImageMatcher {
     return normalizedFilename.includes(normalizedRef);
   }
 
-  private calculateFilenamePatternScore(image: ImageFile, product: ProductData): number {
+  private calculateFilenamePatternScore(image: ImageFile, _product: ProductData): number {
     let score = 0;
 
     // Check for main/front indicators

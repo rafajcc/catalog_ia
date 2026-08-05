@@ -2,7 +2,7 @@
 // Handles all Webservice API interactions with PrestaShop (XML and multipart).
 // Supports PrestaShop 1.7+ with proper error handling and authentication.
 
-import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import axios, { AxiosInstance } from 'axios';
 import { xml2json, json2xml } from 'xml-js';
 import { FormData } from 'formdata-node';
 import { readFileSync } from 'fs';
@@ -17,7 +17,6 @@ import {
   PrestaShopAPIEndpoints,
   ProductData,
   ProductId,
-  EAN,
   Reference
 } from '../../types';
 
@@ -42,7 +41,7 @@ export class PrestaShopClient {
     this.setupInterceptors();
   }
 
-  private buildEndpoints(version: string): PrestaShopAPIEndpoints {
+  private buildEndpoints(_version: string): PrestaShopAPIEndpoints {
     const base = '/api';
     return {
       products: `${base}/products`,
@@ -137,7 +136,7 @@ export class PrestaShopClient {
   async updateStock(stockUpdate: Partial<PrestaShopStockAvailable>): Promise<PrestaShopSyncResult> {
     try {
       const xmlData = this.jsonToXml(stockUpdate);
-      const response = await this.client.put(
+      await this.client.put(
         this.endpoints.stock_available(stockUpdate.id || ''),
         xmlData
       );
@@ -176,7 +175,7 @@ export class PrestaShopClient {
         xmlData
       );
 
-      const updatedProduct = this.parseXmlResponse(response.data);
+      this.parseXmlResponse(response.data);
 
       logger.info('Product updated successfully', {
         productId: productUpdate.id,
@@ -185,11 +184,10 @@ export class PrestaShopClient {
 
       return {
         success: true,
-        product_id: productUpdate.id,
         operation: 'update_product',
+        product_id: productUpdate.id,
         errors: [],
         warnings: [],
-        stock_updated: false,
         timestamp: new Date()
       };
     } catch (error) {
@@ -251,7 +249,7 @@ export class PrestaShopClient {
       formData.append('position', imageData.position?.toString() || '0');
       formData.append('legend', '');
 
-      const response = await this.client.post(
+      await this.client.post(
         this.endpoints.images_upload(imageData.id_product),
         formData,
         {

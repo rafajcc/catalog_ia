@@ -200,7 +200,7 @@ export class ProductNormalizer {
       }
     }
 
-    for (const [key, duplicateList] of seen.entries()) {
+    for (const [, duplicateList] of seen.entries()) {
       if (duplicateList.length > 1) {
         duplicates.push(...duplicateList);
       }

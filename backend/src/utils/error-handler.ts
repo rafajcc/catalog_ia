@@ -28,7 +28,7 @@ export class ErrorHandler {
     next(error);
   }
 
-  static handle(err: any, req: Request, res: Response, next: NextFunction): void {
+  static handle(err: any, req: Request, res: Response, _next: NextFunction): void {
     const statusCode = err && err.statusCode ? err.statusCode : 500;
     const message = err && err.message ? err.message : 'Internal server error';
 

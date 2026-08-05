@@ -241,7 +241,7 @@ export class AITextSuggester {
     return specKeywords.some(keyword => normalizedText.includes(keyword));
   }
 
-  async cacheSuggestions(key: string, suggestions: AIResponse[]): Promise<void> {
+  async cacheSuggestions(key: string, _suggestions: AIResponse[]): Promise<void> {
     // Implement caching if needed
     // This would typically use Redis or in-memory cache
     console.log(`Caching suggestions for key: ${key}`);
@@ -274,7 +274,7 @@ class OpenAIProvider extends AIProvider {
     return this.parseResponse(response, request.field);
   }
 
-  async improve(request: AIRequest, existingText: string): Promise<any> {
+  async improve(request: AIRequest, _existingText: string): Promise<any> {
     const prompt = this.buildPrompt(request, true);
     const response = await this.callOpenAI(prompt);
     return this.parseResponse(response, request.field);
@@ -312,7 +312,7 @@ class OpenAIProvider extends AIProvider {
     };
   }
 
-  private parseResponse(response: any, field: AIContentField): any {
+  private parseResponse(response: any, _field: AIContentField): any {
     return {
       suggested_value: response.choices[0].text,
       confidence: 0.8,
@@ -335,7 +335,7 @@ class AnthropicProvider extends AIProvider {
     return this.parseResponse(response, request.field);
   }
 
-  async improve(request: AIRequest, existingText: string): Promise<any> {
+  async improve(request: AIRequest, _existingText: string): Promise<any> {
     const prompt = this.buildPrompt(request, true);
     const response = await this.callAnthropic(prompt);
     return this.parseResponse(response, request.field);
@@ -367,7 +367,7 @@ class AnthropicProvider extends AIProvider {
     };
   }
 
-  private parseResponse(response: any, field: AIContentField): any {
+  private parseResponse(response: any, _field: AIContentField): any {
     return {
       suggested_value: response.completion,
       confidence: 0.85,
@@ -390,7 +390,7 @@ class OpenRouterProvider extends AIProvider {
     return this.parseResponse(response, request.field);
   }
 
-  async improve(request: AIRequest, existingText: string): Promise<any> {
+  async improve(request: AIRequest, _existingText: string): Promise<any> {
     const prompt = this.buildPrompt(request, true);
     const response = await this.callOpenRouter(prompt);
     return this.parseResponse(response, request.field);
@@ -416,7 +416,7 @@ class OpenRouterProvider extends AIProvider {
     };
   }
 
-  private parseResponse(response: any, field: AIContentField): any {
+  private parseResponse(response: any, _field: AIContentField): any {
     return {
       suggested_value: response.choices[0].text,
       confidence: 0.75,

@@ -2,6 +2,7 @@
 // Handles CSV file reading with encoding detection and field normalization.
 
 import fs from 'fs-extra';
+import { detect } from 'encoding-japanese';
 import { logger } from '../../utils/logger';
 import {
   ParsedRow,
@@ -11,9 +12,6 @@ import {
   ValidationError,
   ProductData
 } from '../../types';
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { detect } = require('encoding-japanese') as { detect: (data: Uint8Array) => string };
 
 export class CSVParser {
   private config: CSVConfig;
@@ -64,7 +62,7 @@ export class CSVParser {
       const detectedEncoding = await this.detectEncoding(buffer);
       const content = buffer.toString(detectedEncoding);
 
-      const lines = this.parseContent(content, detectedEncoding);
+      const lines = this.parseContent(content);
       const headers = this.extractHeaders(lines[0]);
       const rows = this.parseRows(lines.slice(1), headers);
 
@@ -108,7 +106,7 @@ export class CSVParser {
     return this.config.encoding as BufferEncoding;
   }
 
-  private parseContent(content: string, encoding: string): string[] {
+  private parseContent(content: string): string[] {
     const lines = content.split(/\r?\n/);
     return lines
       .filter(line => line.trim())
