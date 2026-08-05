@@ -104,6 +104,18 @@ The app has two parts that run together: the **backend** (API on `http://localho
 
 You do **not** need to run all the commands below — only the ones for the scenario you are in (development, production, or testing).
 
+| Command (in `backend/`) | What it does |
+|---|---|
+| `npm run dev` | Dev server with hot reload — http://localhost:3000 |
+| `npm run build` | Compile TypeScript to `dist/` |
+| `npm start` | Run the compiled build (run `npm run build` first) |
+
+| Command (in `frontend/`) | What it does |
+|---|---|
+| `npm run dev` | Vite dev server — http://localhost:5173 |
+| `npm run build` | Type-check and production build to `dist/` |
+| `npm run preview` | Preview the production build |
+
 #### Development (daily work)
 
 Open **two terminals** and run one command in each:
@@ -119,18 +131,6 @@ npm run dev
 ```
 
 Then open **http://localhost:5173** in your browser. `npm run dev` already compiles and reloads on changes, so this is all you need for development.
-
-| Command (in `backend/`) | What it does |
-|---|---|
-| `npm run dev` | Dev server with hot reload — http://localhost:3000 |
-| `npm run build` | Compile TypeScript to `dist/` |
-| `npm start` | Run the compiled build (run `npm run build` first) |
-
-| Command (in `frontend/`) | What it does |
-|---|---|
-| `npm run dev` | Vite dev server — http://localhost:5173 |
-| `npm run build` | Type-check and production build to `dist/` |
-| `npm run preview` | Preview the production build |
 
 #### Production (deploy)
 
@@ -156,15 +156,32 @@ Testing is separate from running the app: you do not need the servers up, just J
 
 ## Project Structure
 
+### Root
+```
+catalog_ia/
+├── backend/               # Express API (see below)
+├── frontend/              # React UI (see below)
+├── test/                  # Backend Jest test suites (e.g. test/csv-parser.test.ts)
+├── examples/              # Sample CSV and images
+├── docs/                  # Reserved for documentation (currently empty)
+├── .gitignore
+├── CHANGELOG.md
+├── LICENSE
+├── README.md
+└── tsconfig.json          # Base TypeScript config
+```
+
 ### Backend
 ```
 backend/
 ├── src/
 │   ├── index.ts           # Main entry point
-│   ├── app.ts            # Express application setup
-│   ├── utils/           # Shared utilities
-│   │   └── logger.ts     # Logging configuration
-│   └── modules/         # Business logic modules
+│   ├── app.ts             # Express application setup
+│   ├── types.ts           # Shared type definitions
+│   ├── utils/             # Shared utilities
+│   │   ├── logger.ts      # Logging configuration
+│   │   └── error-handler.ts # Central error handling
+│   └── modules/           # Business logic modules
 │       ├── csv-parser/        # CSV parsing and encoding detection
 │       ├── validator/        # Product validation logic
 │       ├── product-normalizer/ # Field normalization
@@ -177,7 +194,9 @@ backend/
 │       └── audit-log/      # Audit logging
 ├── package.json
 ├── .env.example
-└── .gitignore
+├── .eslintrc.json
+├── jest.config.js
+└── tsconfig.json
 ```
 
 ### Frontend
@@ -207,6 +226,7 @@ frontend/
 ├── .eslintrc.json
 ├── jest.config.js
 ├── jest.setup.ts
+├── jest.styleMock.js
 ├── tsconfig.json
 └── vite.config.ts
 ```
@@ -217,10 +237,7 @@ examples/
 ├── example-products.csv    # Sample CSV file
 └── example-images/         # Sample images directory
 
-docs/                      # Documentation
-├── README.md              # Project overview
-├── SETUP_GUIDE.md         # Detailed setup instructions
-└── API_REFERENCE.md       # API documentation
+docs/                       # Reserved for documentation (currently empty)
 ```
 
 ## PrestaShop Compatibility
