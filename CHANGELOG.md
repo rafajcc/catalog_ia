@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `LICENSE` (MIT) and `CHANGELOG.md` files referenced from the README.
+- Unit tests for `logger`, `error-handler`, and `ai-text-suggester` (mock provider, no API calls).
+- Integration tests for the Express app via supertest (routing, security headers, CORS, rate limiting, error handling).
+- Tests for the server entry point (startup, PORT handling, graceful shutdown, error handler setup) using module mocks.
+- New npm scripts `test:logger`, `test:error-handler`, `test:ai-suggester`, `test:app`, and `test:index`.
 
 ## [0.1.0] - 2026-08-05
 

@@ -4,6 +4,9 @@ module.exports = {
   roots: ['<rootDir>/src', '<rootDir>/../test'],
   testMatch: ['**/*.test.ts', '**/*.test.js'],
   moduleFileExtensions: ['ts', 'js', 'json', 'node'],
+  moduleNameMapper: {
+    '^supertest$': '<rootDir>/node_modules/supertest'
+  },
   clearMocks: true,
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.test.ts'],
   coverageDirectory: 'coverage',

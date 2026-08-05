@@ -336,8 +336,10 @@ Tests use **Jest + ts-jest** (configured in `backend/jest.config.js`). Test file
 | `npm run test:logger` | Runs only the logger tests |
 | `npm run test:error-handler` | Runs only the error handler tests |
 | `npm run test:ai-suggester` | Runs only the AI text suggester tests (mock provider, no API calls) |
+| `npm run test:app` | Runs only the Express app integration tests (supertest) |
+| `npm run test:index` | Runs only the server entry point tests |
 
-Coverage is collected from `backend/src/**/*.ts` and currently covers the pure-logic modules: `csv-parser`, `validator`, `product-normalizer`, `image-matcher`, `image-ranker`, `review-state`, `audit-log`, `logger`, `error-handler`, and `ai-text-suggester` (via the mock provider). Network-facing modules (`prestashop-client`, `sync-service`, server `app.ts`/`index.ts`) are not covered yet.
+Coverage is collected from `backend/src/**/*.ts` and currently covers the pure-logic modules (`csv-parser`, `validator`, `product-normalizer`, `image-matcher`, `image-ranker`, `review-state`, `audit-log`, `logger`, `error-handler`, `ai-text-suggester`) plus the Express app and server entry point. Network-facing modules (`prestashop-client`, `sync-service`) are not covered yet.
 
 Example:
 
