@@ -100,29 +100,58 @@ IMAGE_ALLOWED_FORMATS=image/jpeg,image/png,image/webp
 
 ### Running the Application
 
-Run the **backend** and the **frontend** in two separate terminals. The backend exposes the API on `http://localhost:3000`; the frontend dev server proxies all `/api` and `/uploads` requests to it.
+The app has two parts that run together: the **backend** (API on `http://localhost:3000`) and the **frontend** (web UI on `http://localhost:5173`). The frontend dev server proxies all `/api` and `/uploads` requests to the backend.
 
-#### Backend
+You do **not** need to run all the commands below — only the ones for the scenario you are in (development, production, or testing).
 
-From the `backend/` folder:
+#### Development (daily work)
 
-| Command | What it does |
+Open **two terminals** and run one command in each:
+
+```bash
+# Terminal 1 — backend
+cd backend
+npm run dev
+
+# Terminal 2 — frontend
+cd frontend
+npm run dev
+```
+
+Then open **http://localhost:5173** in your browser. `npm run dev` already compiles and reloads on changes, so this is all you need for development.
+
+| Command (in `backend/`) | What it does |
 |---|---|
 | `npm run dev` | Dev server with hot reload — http://localhost:3000 |
 | `npm run build` | Compile TypeScript to `dist/` |
 | `npm start` | Run the compiled build (run `npm run build` first) |
 
-#### Frontend
-
-From the `frontend/` folder:
-
-| Command | What it does |
+| Command (in `frontend/`) | What it does |
 |---|---|
 | `npm run dev` | Vite dev server — http://localhost:5173 |
 | `npm run build` | Type-check and production build to `dist/` |
 | `npm run preview` | Preview the production build |
 
-Once both are running, open **http://localhost:5173** in your browser.
+#### Production (deploy)
+
+Run these **after** you already tested in development:
+
+```bash
+# Backend
+cd backend
+npm run build      # compile to dist/
+npm start          # serve the compiled API
+
+# Frontend
+cd ../frontend
+npm run build      # generate frontend/dist/ with the optimized static files
+```
+
+The backend serves the API; the frontend `dist/` folder is static files you deploy to any web server (nginx, Netlify, Vercel, etc.). `npm run preview` in `frontend/` only serves that build locally to check it before deploying — Vite uses `preview` instead of `start` because the frontend is a static site, not a long-running Node server (that is why only the backend has `start`).
+
+#### Testing
+
+Testing is separate from running the app: you do not need the servers up, just Jest. See [Running the Tests](#running-the-tests) below for the exact commands.
 
 ## Project Structure
 
