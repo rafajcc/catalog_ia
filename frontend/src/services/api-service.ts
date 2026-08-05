@@ -1,32 +1,29 @@
-"""
-API Service Layer
-Handles all communication between frontend and backend
-"""
+// API Service Layer
+// Handles all communication between the frontend and the backend
 
-import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import axios, { AxiosInstance } from 'axios';
 import {
-  ApiResponse,
-  PaginatedResponse,
-  FileUploadResponse,
-  SyncResponse,
-  ConfigurationResponse,
-  SyncPlanResponse,
-  ProductData,
   AIConfig,
-  ValidationConfig,
+  ApiResponse,
+  ConfigurationResponse,
+  FileUploadResponse,
   ImageMatcherConfig,
-  ImageSelectionConfig,
+  PrestaShopConfig,
   SyncConfig,
-  SyncSession,
-  SyncResult
+  SyncResponse
 } from '../types';
 
-class ApiService {
-  private client: AxiosInstance;
-  private baseURL: string;
+export type ConfigurationUpdate = Partial<Omit<ConfigurationResponse, 'prestashop' | 'ai'>> & {
+  prestashop?: Partial<PrestaShopConfig>;
+  ai?: Partial<AIConfig>;
+};
 
-  constructor() {
-    this.baseURL = '/api';
+export class ApiService {
+  readonly baseURL: string;
+  private client: AxiosInstance;
+
+  constructor(baseURL = '/api') {
+    this.baseURL = baseURL;
     this.client = axios.create({
       baseURL: this.baseURL,
       timeout: 30000,
@@ -82,17 +79,17 @@ class ApiService {
     return response.data;
   }
 
-  async updateConfiguration(config: any): Promise<ApiResponse> {
+  async updateConfiguration(config: ConfigurationUpdate): Promise<ApiResponse> {
     const response = await this.client.put('/config', config);
     return response.data;
   }
 
-  async testPrestashopConnection(config: any): Promise<ApiResponse> {
+  async testPrestashopConnection(config: PrestaShopConfig): Promise<ApiResponse> {
     const response = await this.client.post('/config/test/prestashop', config);
     return response.data;
   }
 
-  async testAIConnection(config: any): Promise<ApiResponse> {
+  async testAIConnection(config: AIConfig): Promise<ApiResponse> {
     const response = await this.client.post('/config/test/ai', config);
     return response.data;
   }
@@ -112,7 +109,7 @@ class ApiService {
 
   async uploadImages(files: File[]): Promise<ApiResponse> {
     const formData = new FormData();
-    files.forEach(file => {
+    files.forEach((file) => {
       formData.append('files', file);
     });
 
@@ -150,7 +147,7 @@ class ApiService {
     return response.data;
   }
 
-  async matchImages(dataId: string, config: any): Promise<ApiResponse> {
+  async matchImages(dataId: string, config: ImageMatcherConfig): Promise<ApiResponse> {
     const response = await this.client.post(`/images/match/${dataId}`, config);
     return response.data;
   }
@@ -160,7 +157,7 @@ class ApiService {
     return response.data;
   }
 
-  async generateTextSuggestions(dataId: string, config: any): Promise<ApiResponse> {
+  async generateTextSuggestions(dataId: string, config: AIConfig): Promise<ApiResponse> {
     const response = await this.client.post(`/ai/suggest/${dataId}`, config);
     return response.data;
   }
@@ -170,12 +167,13 @@ class ApiService {
     return response.data;
   }
 
-  async createSyncSession(dataId: string, config: any): Promise<SyncResponse> {
+  // Sync endpoints
+  async createSyncSession(dataId: string, config: SyncConfig): Promise<SyncResponse> {
     const response = await this.client.post(`/sync/session/${dataId}`, config);
     return response.data;
   }
 
-  async getSyncSession(sessionId: string): Promise<ApiResponse> {
+  async getSyncSession(sessionId: string): Promise<SyncResponse> {
     const response = await this.client.get(`/sync/session/${sessionId}`);
     return response.data;
   }
@@ -208,12 +206,12 @@ class ApiService {
     return response.data;
   }
 
-  async updateReviewState(dataId: string, reviewState: any): Promise<ApiResponse> {
+  async updateReviewState(dataId: string, reviewState: unknown): Promise<ApiResponse> {
     const response = await this.client.put(`/review/state/${dataId}`, reviewState);
     return response.data;
   }
 
-  async applyReviewChanges(dataId: string, changes: any): Promise<ApiResponse> {
+  async applyReviewChanges(dataId: string, changes: unknown): Promise<ApiResponse> {
     const response = await this.client.post(`/review/apply/${dataId}`, changes);
     return response.data;
   }
@@ -253,4 +251,14 @@ class ApiService {
       responseType: 'blob'
     });
     return response.data;
+  }
+}
+
+let cachedApiService: ApiService | undefined;
+
+export function getApiService(): ApiService {
+  if (!cachedApiService) {
+    cachedApiService = new ApiService();
+  }
+  return cachedApiService;
 }

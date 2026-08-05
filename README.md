@@ -383,7 +383,18 @@ npm start      # run the compiled build (run `npm run build` first)
 
 ### Frontend
 
-The frontend has its own scripts under `frontend/` (`npm run dev`, `npm test`, `npm run typecheck`, `npm run lint`). Run them from the `frontend/` folder.
+The frontend has its own scripts under `frontend/`. Run them from the `frontend/` folder.
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Vite dev server with a proxy to `http://localhost:3000` |
+| `npm run build` | Type-check and production build to `dist/` |
+| `npm test` | Runs the frontend Jest suite (jsdom + React Testing Library) |
+| `npm run test:coverage` | Runs frontend tests with a coverage report |
+| `npm run typecheck` | TypeScript type checking (`tsc --noEmit`) |
+| `npm run lint` | ESLint over `src/` (TS + React) |
+
+Frontend tests are colocated next to their sources (e.g. `src/components/sync/SyncPanel.test.tsx`). The API layer is tested with a mocked axios instance, panel components mock the API service module, and the dashboard flow is covered end-to-end through the UI. The frontend suite currently has ~94% coverage across services, utilities, hooks, components, and the dashboard page.
 
 ### Suggested workflow before committing
 

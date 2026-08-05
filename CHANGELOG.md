@@ -16,8 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PrestaShop client tests with a mocked axios instance (interceptors, XML parsing, product/stock/image sync flows).
 - Sync service tests using faked collaborators (planning, execution, dry-run, summaries).
 - New npm scripts `test:prestashop` and `test:sync-service`.
+- Complete React frontend UI built on the scaffolding: typed API layer (`api-service.ts`), shared types, formatting/download utilities, `useApi` hook, and tabbed dashboard with upload, configuration, validation, image matching, AI suggestions, sync and review panels.
+- Frontend testing infrastructure (jest + ts-jest + jsdom, RTL, user-event) and tests for services, utilities, hooks, every panel component, and the dashboard flow (93 tests, ~94% coverage).
+- New frontend scripts `test:coverage`, plus `tsconfig.json`, `vite.config.ts`, `.eslintrc.json`, and `jest.setup.ts` for the frontend.
 
 ### Fixed
+- The frontend `api-service.ts` had an invalid Python-style docstring at the top and imported a non-existent `types` module; both are resolved, methods are typed against the shared API contract, and the service is exposed through a lazy singleton.
 - PrestaShop client XML responses were never parsed to objects (`xml2json` returns a JSON string), so `resolveProduct`/`resolveStockAvailable` always returned `null` and `createProduct` read undefined ids. The parsed response is now unwrapped and normalized (single/multiple results, `_attributes`/`_cdata`/`_text` extraction).
 - Product image uploads always failed because `formdata-node` rejects raw Buffers; the file buffer is now wrapped in a `Blob`.
 - Image uploads used a hardcoded `/tmp/product_<id>_image_<n>.jpg` placeholder path; they now upload the actual file path from the selected image.
