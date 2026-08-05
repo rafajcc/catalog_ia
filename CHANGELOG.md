@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Complete React frontend UI built on the scaffolding: typed API layer (`api-service.ts`), shared types, formatting/download utilities, `useApi` hook, and tabbed dashboard with upload, configuration, validation, image matching, AI suggestions, sync and review panels.
 - Frontend testing infrastructure (jest + ts-jest + jsdom, RTL, user-event) and tests for services, utilities, hooks, every panel component, and the dashboard flow (96 tests, ~94% coverage).
 - New frontend scripts `test:coverage`, plus `tsconfig.json`, `vite.config.ts`, `.eslintrc.json`, and `jest.setup.ts` for the frontend.
+- Frontend partial test scripts (`test:app`, `test:dashboard`, `test:layout`, `test:upload`, `test:configuration`, `test:validation`, `test:images`, `test:ai`, `test:sync`, `test:review`, `test:hooks`, `test:services`, `test:utils`) mirroring the backend's per-module test commands.
 - Full UI internationalization (Spanish by default, English selectable) via an `I18nProvider`/`useI18n` hook with a language toggle in the header and `localStorage` persistence (`frontend/src/i18n.tsx`).
 - README reorganized with separate backend and frontend sections for running the application, running the tests, and code quality checks.
 - `GET /api/status` endpoint so the frontend status indicator reports the backend as online.

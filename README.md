@@ -432,13 +432,26 @@ describe('CSVParser', () => {
 
 ### Frontend tests
 
-Configuration: `frontend/jest.config.js`. Tests run in jsdom with React Testing Library and are colocated next to their sources (e.g. `src/components/sync/SyncPanel.test.tsx`).
+Configuration: `frontend/jest.config.cjs`. Tests run in jsdom with React Testing Library and are colocated next to their sources (e.g. `src/components/sync/SyncPanel.test.tsx`).
 
 | Command | What it does |
 |---|---|
 | `npm test` | Runs the full frontend test suite |
 | `npm run test:watch` | Runs tests in watch mode (re-runs on changes) |
 | `npm run test:coverage` | Runs tests with a coverage report |
+| `npm run test:app` | Runs only the root app tests (`App.test.tsx`) |
+| `npm run test:dashboard` | Runs only the dashboard page tests |
+| `npm run test:layout` | Runs only the header and tab navigation tests |
+| `npm run test:upload` | Runs only the data upload panel tests |
+| `npm run test:configuration` | Runs only the configuration form tests |
+| `npm run test:validation` | Runs only the product validation panel tests |
+| `npm run test:images` | Runs only the image matching panel tests |
+| `npm run test:ai` | Runs only the AI suggestions panel tests |
+| `npm run test:sync` | Runs only the synchronization panel tests |
+| `npm run test:review` | Runs only the review panel tests |
+| `npm run test:hooks` | Runs only the `useApi` hook tests |
+| `npm run test:services` | Runs only the API service tests (mocked axios) |
+| `npm run test:utils` | Runs only the utility tests (formatting, download) |
 
 All commands above run from the `frontend/` folder:
 
@@ -446,6 +459,8 @@ All commands above run from the `frontend/` folder:
 cd frontend
 npm test
 ```
+
+Any subset of tests can also be run directly, e.g. `npx jest --testPathPattern=SyncPanel`.
 
 The frontend suite covers the API layer (mocked axios, including the 401/500 interceptors), utilities, hooks, every panel component (with the API service module mocked), and the full dashboard flow end-to-end through the UI. Current coverage is ~94%.
 
