@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The CSV format guide in the upload tab now documents the PrestaShop text limits and the strict price/quantity rules (max 2 decimals, integers only, no rounding or truncation).
 - `ValidationRule` supports a `decimals` constraint and `number`/`integer` rule types are enforced distinctly (`Number.isInteger` for integers, decimal-place count for numbers).
 - CSV parser tests, normalizer tests, validator tests, API route tests and upload tab tests updated/added for the new strict rules.
+- The "Synchronization" tab now comes after "Review" in the tab order, and it stays disabled until the user explicitly marks the review as completed with the new "Mark review as completed" button in the review panel. Re-uploading, deleting or re-processing a CSV re-locks it; "Review" itself unlocks once the data is validated, like the AI tab.
 
 ### Added
 - CSV columns `stock` (a synonym for `quantity`) and `weight` removed from the CSV template, parser, normalizer, validator, AI suggestion context, PrestaShop sync payloads and the format guide: the header is now 14 columns (`ean,reference,name,sku,price,wholesale_price,quantity,brand,manufacturer,category,tax,description_short,description,image_hints`).

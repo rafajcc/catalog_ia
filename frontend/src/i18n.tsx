@@ -167,6 +167,8 @@ export const translations: Record<Language, Record<string, string>> = {
     'review.withSuggestions': '{count} con sugerencias',
     'review.acceptAll': 'Aceptar todo',
     'review.accepted': 'Todos los cambios aceptados',
+    'review.completeButton': 'Marcar revisión como completada',
+    'review.completed': 'Revisión completada. Sincronización desbloqueada.',
     'review.export': 'Exportar',
     'review.exported': 'Estado de revisión exportado'
   },
@@ -333,6 +335,8 @@ export const translations: Record<Language, Record<string, string>> = {
     'review.withSuggestions': '{count} with suggestions',
     'review.acceptAll': 'Accept all',
     'review.accepted': 'All changes accepted',
+    'review.completeButton': 'Mark review as completed',
+    'review.completed': 'Review completed. Sync unlocked.',
     'review.export': 'Export',
     'review.exported': 'Review state exported'
   }

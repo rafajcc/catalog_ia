@@ -9,7 +9,7 @@ interface Message {
   text: string;
 }
 
-export default function ReviewPanel({ dataId }: { dataId: string }) {
+export default function ReviewPanel({ dataId, onReviewCompleted }: { dataId: string; onReviewCompleted?: () => void }) {
   const api = getApiService();
   const { t } = useI18n();
   const [review, setReview] = useState<ReviewState | null>(null);
@@ -57,6 +57,11 @@ export default function ReviewPanel({ dataId }: { dataId: string }) {
     }
   }
 
+  function handleMarkCompleted() {
+    onReviewCompleted?.();
+    setMessage({ kind: 'success', text: t('review.completed') });
+  }
+
   return (
     <section className="card">
       <h2>{t('review.title')}</h2>
@@ -74,6 +79,9 @@ export default function ReviewPanel({ dataId }: { dataId: string }) {
             <span className="chip">{t('review.withSuggestions', { count: review.suggested_count })}</span>
           </div>
           <div style={{ marginTop: '0.75rem' }}>
+            <button type="button" className="btn primary" disabled={busy} onClick={handleMarkCompleted}>
+              {t('review.completeButton')}
+            </button>
             <button type="button" className="btn" disabled={busy} onClick={handleAcceptAll}>
               {t('review.acceptAll')}
             </button>

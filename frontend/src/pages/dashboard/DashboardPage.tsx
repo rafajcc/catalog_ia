@@ -18,8 +18,8 @@ const TAB_KEYS: Array<{ id: string; key: string }> = [
   { id: 'validation', key: 'tabs.validation' },
   { id: 'images', key: 'tabs.images' },
   { id: 'ai', key: 'tabs.ai' },
-  { id: 'sync', key: 'tabs.sync' },
-  { id: 'review', key: 'tabs.review' }
+  { id: 'review', key: 'tabs.review' },
+  { id: 'sync', key: 'tabs.sync' }
 ];
 
 export default function DashboardPage() {
@@ -28,12 +28,14 @@ export default function DashboardPage() {
   const [dataId, setDataId] = useState<string | undefined>(undefined);
   const [dataVersion, setDataVersion] = useState(0);
   const [validatedAtVersion, setValidatedAtVersion] = useState<number | null>(null);
+  const [reviewedAtVersion, setReviewedAtVersion] = useState<number | null>(null);
   const [showConfiguration, setShowConfiguration] = useState(false);
   const [uploadedCsvs, setUploadedCsvs] = useState<UploadItem[]>([]);
   const [uploadedImages, setUploadedImages] = useState<UploadItem[]>([]);
   const status = useBackendStatus();
 
   const validated = dataId !== undefined && validatedAtVersion !== null && validatedAtVersion === dataVersion;
+  const reviewed = dataId !== undefined && reviewedAtVersion !== null && reviewedAtVersion === dataVersion;
 
   async function refreshUploads() {
     const res = await getApiService().getUploads();
@@ -51,6 +53,7 @@ export default function DashboardPage() {
     if (csvsChanged) {
       setDataVersion((value) => value + 1);
       setValidatedAtVersion(null);
+      setReviewedAtVersion(null);
     }
     if (csvs.length === 0) {
       setDataId(undefined);
@@ -87,9 +90,11 @@ export default function DashboardPage() {
     disabled:
       tab.id === 'images'
         ? !(dataId && uploadedImages.length > 0)
-        : tab.id === 'ai' || tab.id === 'sync' || tab.id === 'review'
+        : tab.id === 'ai' || tab.id === 'review'
           ? !validated
-          : tab.id !== 'upload' && !dataId
+          : tab.id === 'sync'
+            ? !reviewed
+            : tab.id !== 'upload' && !dataId
   }));
 
   function handleTabChange(id: string) {
@@ -100,11 +105,13 @@ export default function DashboardPage() {
   function handleDataReady(id: string) {
     setDataId(id);
     setValidatedAtVersion(null);
+    setReviewedAtVersion(null);
   }
 
   function handleCsvUploaded(item: UploadItem) {
     setUploadedCsvs((prev) => [...prev, item]);
     setDataVersion((value) => value + 1);
+    setReviewedAtVersion(null);
   }
 
   function handleImagesUploaded(items: UploadItem[]) {
@@ -156,10 +163,17 @@ export default function DashboardPage() {
               ))}
             {activeTab === 'ai' &&
               (dataId ? <SuggestionsPanel dataId={dataId} /> : <p className="message error">{t('dashboard.emptyDataNotice')}</p>)}
+            {activeTab === 'review' &&
+              (dataId ? (
+                <ReviewPanel
+                  dataId={dataId}
+                  onReviewCompleted={() => setReviewedAtVersion(dataVersion)}
+                />
+              ) : (
+                <p className="message error">{t('dashboard.emptyDataNotice')}</p>
+              ))}
             {activeTab === 'sync' &&
               (dataId ? <SyncPanel dataId={dataId} /> : <p className="message error">{t('dashboard.emptyDataNotice')}</p>)}
-            {activeTab === 'review' &&
-              (dataId ? <ReviewPanel dataId={dataId} /> : <p className="message error">{t('dashboard.emptyDataNotice')}</p>)}
           </>
         )}
       </main>

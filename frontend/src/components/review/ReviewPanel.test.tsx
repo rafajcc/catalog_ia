@@ -64,6 +64,19 @@ describe('ReviewPanel', () => {
     expect(await screen.findByText('All changes accepted')).toBeInTheDocument();
   });
 
+  it('marks the review as completed and notifies the parent', async () => {
+    mockApi.getReviewState.mockResolvedValue({ success: true, data: review });
+    const onReviewCompleted = jest.fn();
+    renderWithI18n(<ReviewPanel dataId="d1" onReviewCompleted={onReviewCompleted} />, 'en');
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Load review state' }));
+    await user.click(await screen.findByRole('button', { name: 'Mark review as completed' }));
+
+    expect(onReviewCompleted).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Review completed. Sync unlocked.')).toBeInTheDocument();
+  });
+
   it('exports the review state as a file', async () => {
     mockApi.getReviewState.mockResolvedValue({ success: true, data: review });
     mockApi.exportReviewState.mockResolvedValue(new Blob(['{}'], { type: 'application/json' }));
