@@ -196,7 +196,7 @@ async function scanImageFolder(folderPath: string): Promise<ImageFile[]> {
 
 export function createApiRouter(deps: RouteDependencies): Router {
   const { store } = deps;
-  const uploadsDir = deps.uploadsDir || path.resolve(process.cwd(), 'uploads');
+  const uploadsDir = deps.uploadsDir || path.join(__dirname, '..', 'uploads');
   const router = Router();
 
   // Health and status

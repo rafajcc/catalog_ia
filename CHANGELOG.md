@@ -33,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The parsed CSV datasets are now keyed by their file id (the `data_id` returned by `POST /api/process/csv` is the file id), so merged results are consistent with the upload list.
 - The validation panel no longer shows the loaded files as a comma-separated line at the top; it now shows a collapsible file list at the bottom of the panel (same look as the upload tab, without delete buttons), so long file lists stay hidden until expanded.
 
+### Fixed
+- The default configuration file (`config.json` + `config.json.key`) and the uploads directory are now anchored to the backend package folder instead of the process working directory. Previously the server read/wrote a different `config.json` depending on the directory it was started from, so restarting it from another folder looked like the saved configuration (PrestaShop/AI credentials) had been lost.
+- The PrestaShop connection now authenticates with HTTP Basic auth (API key as username, empty password) instead of a `Bearer` token: PrestaShop's webservice only accepts Basic auth or the `ws_key` query parameter, so the connection test and every sync request returned 401 before. The base URL also tolerates a trailing `/api` (e.g. `http://localhost:8081/api`), which is stripped internally since all endpoints are built relative to the store root.
+
 ### Added
 - `LICENSE` (MIT) and `CHANGELOG.md` files referenced from the README.
 - Unit tests for `logger`, `error-handler`, and `ai-text-suggester` (mock provider, no API calls).

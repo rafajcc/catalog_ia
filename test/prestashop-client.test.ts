@@ -107,17 +107,26 @@ describe('PrestaShopClient', () => {
 
       expect(mockAxiosCreate).toHaveBeenCalledWith(expect.objectContaining({ timeout: 5000 }));
     });
+
+    it('strips a trailing "/api" from the base URL', () => {
+      const fake = makeFakeClient();
+
+      makeClient(fake, { ...baseConfig, base_url: 'https://shop.example.com/api/' });
+
+      expect(mockAxiosCreate).toHaveBeenCalledWith(expect.objectContaining({ baseURL: 'https://shop.example.com' }));
+    });
   });
 
   describe('request interceptor', () => {
-    it('adds the bearer token to every request', () => {
+    it('adds the Basic auth header with the API key as the username', () => {
       const fake = makeFakeClient();
       makeClient(fake);
 
       const config = { headers: {} };
       const result = fake.requestInterceptor!(config);
 
-      expect(result.headers.Authorization).toBe('Bearer SECRET-KEY');
+      const expected = Buffer.from('SECRET-KEY:').toString('base64');
+      expect(result.headers.Authorization).toBe(`Basic ${expected}`);
     });
 
     it('rejects request errors', async () => {

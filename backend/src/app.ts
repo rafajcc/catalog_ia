@@ -23,7 +23,7 @@ export interface CreateAppOptions {
 
 export default function createApp(options: CreateAppOptions = {}) {
   const app = express();
-  const uploadsDir = options.uploadsDir || path.resolve(process.cwd(), 'uploads');
+  const uploadsDir = options.uploadsDir || path.join(__dirname, '..', 'uploads');
 
   // Security middleware
   app.use(helmet({

@@ -19,6 +19,10 @@ jest.mock('../backend/src/utils/error-handler', () => ({
   ErrorHandler: { setup: jest.fn() }
 }));
 
+const path = require('path');
+
+const expectedConfigFile = path.join(path.dirname(require.resolve('../backend/src/index')), '..', 'config.json');
+
 interface IndexMocks {
   createApp: jest.Mock;
   info: jest.Mock;
@@ -72,6 +76,17 @@ describe('index.ts', () => {
     expect(mocks.createApp).toHaveBeenCalledTimes(1);
     expect(listenMock).toHaveBeenCalledTimes(1);
     expect(listenMock.mock.calls[0][0]).toBe(3000);
+  });
+
+  it('resolves the default config file to the backend package directory', () => {
+    const listenMock = listenWithClose();
+
+    loadIndex(listenMock);
+
+    expect(listenMock.mock.calls.length).toBe(1);
+    expect(require('../backend/src/app').default).toHaveBeenCalledWith(
+      expect.objectContaining({ configFile: expectedConfigFile })
+    );
   });
 
   it('uses the PORT environment variable when set', () => {

@@ -28,7 +28,7 @@ export class PrestaShopClient {
   constructor(config: PrestaShopConfig) {
     this.config = config;
     this.client = axios.create({
-      baseURL: config.base_url,
+      baseURL: this.normalizeBaseUrl(config.base_url),
       timeout: config.timeout || 30000,
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -39,6 +39,12 @@ export class PrestaShopClient {
     this.endpoints = this.buildEndpoints(config.version);
 
     this.setupInterceptors();
+  }
+
+  private normalizeBaseUrl(url: string): string {
+    // The store root works without the trailing "/api": all endpoints are
+    // built relative to it (see buildEndpoints), so strip it when present.
+    return url.trim().replace(/\/api\/?$/, '');
   }
 
   private buildEndpoints(_version: string): PrestaShopAPIEndpoints {
@@ -58,7 +64,11 @@ export class PrestaShopClient {
   private setupInterceptors(): void {
     this.client.interceptors.request.use(
       (config) => {
-        config.headers['Authorization'] = `Bearer ${this.config.api_key}`;
+        // PrestaShop's webservice authenticates with HTTP Basic auth: the API
+        // key is the username and the password is empty ("KEY:"). It does not
+        // accept a Bearer token.
+        const credentials = Buffer.from(`${this.config.api_key}:`).toString('base64');
+        config.headers['Authorization'] = `Basic ${credentials}`;
         return config;
       },
       (error) => Promise.reject(error)

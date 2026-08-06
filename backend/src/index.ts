@@ -10,7 +10,9 @@ const PORT = process.env.PORT || 3000;
 // The configuration file is persisted with encrypted secrets; override the
 // default location with the CONFIG_FILE environment variable and the
 // encryption secret with CONFIG_SECRET.
-const configFile = process.env.CONFIG_FILE || path.resolve(process.cwd(), 'config.json');
+// The default is anchored to the backend package (../config.json from src or
+// dist) so it does not depend on the directory the server is started from.
+const configFile = process.env.CONFIG_FILE || path.join(__dirname, '..', 'config.json');
 const app = createApp({ configFile });
 let server: Server | undefined;
 
