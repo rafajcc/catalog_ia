@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { getApiService } from '../../services/api-service';
+import { useState } from 'react';
 import { useI18n } from '../../i18n';
+import { useBackendStatus } from '../../hooks/useBackendStatus';
 import AppHeader from '../../components/layout/AppHeader';
 import TabNav, { TabItem } from '../../components/layout/TabNav';
 import UploadSection from '../../components/data-upload/UploadSection';
@@ -22,30 +22,10 @@ const TAB_KEYS: Array<{ id: string; key: string }> = [
 ];
 
 export default function DashboardPage() {
-  const api = getApiService();
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState('upload');
   const [dataId, setDataId] = useState<string | undefined>(undefined);
-  const [status, setStatus] = useState('Checking…');
-
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .getSystemStatus()
-      .then((result) => {
-        if (!cancelled) {
-          setStatus(result.success ? (result.message ?? 'Online') : 'Degraded');
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setStatus('Offline');
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [api]);
+  const status = useBackendStatus();
 
   const tabs: TabItem[] = TAB_KEYS.map((tab) => ({ id: tab.id, label: t(tab.key) }));
 

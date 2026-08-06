@@ -488,7 +488,7 @@ Configuration: `frontend/jest.config.cjs`. Tests run in jsdom with React Testing
 | `npm run test:ai` | Runs only the AI suggestions panel tests |
 | `npm run test:sync` | Runs only the synchronization panel tests |
 | `npm run test:review` | Runs only the review panel tests |
-| `npm run test:hooks` | Runs only the `useApi` hook tests |
+| `npm run test:hooks` | Runs only the hook tests (`useApi`, `useBackendStatus`) |
 | `npm run test:services` | Runs only the API service tests (mocked axios) |
 | `npm run test:utils` | Runs only the utility tests (formatting, download) |
 

@@ -22,7 +22,7 @@
     "test:ai": "jest --testPathPattern=SuggestionsPanel",
     "test:sync": "jest --testPathPattern=SyncPanel",
     "test:review": "jest --testPathPattern=ReviewPanel",
-    "test:hooks": "jest --testPathPattern=useApi",
+    "test:hooks": "jest --testPathPattern=(useApi|useBackendStatus)",
     "test:services": "jest --testPathPattern=api-service",
     "test:utils": "jest --testPathPattern=src/utils",
     "typecheck": "tsc --noEmit",
@@ -49,13 +49,12 @@
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.46.0",
     "react-icons": "^4.10.0",
-    "react-router-dom": "^6.15.0",
     "react-toastify": "^9.1.0",
     "recharts": "^2.8.0",
     "styled-components": "^6.1.0",
     "tailwindcss": "^3.3.0",
     "typescript": "^5.0.0",
-    "vite": "^5.4.0",
+    "vite": "^7.3.6",
     "vite-plugin-sass": "^0.1.0"
   },
   "devDependencies": {
