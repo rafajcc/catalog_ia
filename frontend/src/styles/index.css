@@ -78,6 +78,43 @@ body {
   font-size: 0.875rem;
 }
 
+.upload-counter {
+  color: #2563eb;
+  font-weight: 600;
+  font-size: 0.75rem;
+  margin-left: 0.35rem;
+}
+
+.uploaded-list {
+  margin-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 0.5rem;
+}
+
+.uploaded-list h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+}
+
+.uploaded-group {
+  margin-bottom: 0.5rem;
+}
+
+.uploaded-group strong {
+  display: block;
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-bottom: 0.15rem;
+}
+
+.uploaded-group ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  max-height: 120px;
+  overflow-y: auto;
+  font-size: 0.8125rem;
+}
+
 .message {
   padding: 0.55rem 0.8rem;
   border-radius: 6px;

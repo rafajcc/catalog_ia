@@ -25,13 +25,27 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState('upload');
   const [dataId, setDataId] = useState<string | undefined>(undefined);
   const [showConfiguration, setShowConfiguration] = useState(false);
+  const [uploadedCsvs, setUploadedCsvs] = useState<string[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const status = useBackendStatus();
 
-  const tabs: TabItem[] = TAB_KEYS.map((tab) => ({ id: tab.id, label: t(tab.key) }));
+  const tabs: TabItem[] = TAB_KEYS.map((tab) => ({
+    id: tab.id,
+    label: t(tab.key),
+    disabled: tab.id !== 'upload' && !dataId
+  }));
 
   function handleTabChange(id: string) {
     setActiveTab(id);
     setShowConfiguration(false);
+  }
+
+  function handleCsvUploaded(name: string) {
+    setUploadedCsvs((prev) => [...prev, name]);
+  }
+
+  function handleImagesUploaded(names: string[]) {
+    setUploadedImages((prev) => [...prev, ...names]);
   }
 
   const requiresData = activeTab !== 'upload';
@@ -56,7 +70,16 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {activeTab === 'upload' && <UploadSection dataId={dataId} onDataReady={setDataId} />}
+            {activeTab === 'upload' && (
+              <UploadSection
+                dataId={dataId}
+                onDataReady={setDataId}
+                uploadedCsvs={uploadedCsvs}
+                uploadedImages={uploadedImages}
+                onCsvUploaded={handleCsvUploaded}
+                onImagesUploaded={handleImagesUploaded}
+              />
+            )}
             {activeTab === 'validation' &&
               (dataId ? <ValidationPanel dataId={dataId} /> : <p className="message error">{t('dashboard.emptyDataNotice')}</p>)}
             {activeTab === 'images' &&

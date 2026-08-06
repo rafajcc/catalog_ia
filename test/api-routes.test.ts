@@ -139,6 +139,38 @@ describe('API routes', () => {
     expect(res.body.error.message).toMatch(/binary content/i);
   });
 
+  it('rejects a CSV file that has already been uploaded', async () => {
+    const app = makeApp();
+    const first = await request(app)
+      .post('/api/upload/csv')
+      .attach('file', csvBuffer(), { filename: 'products.csv', contentType: 'text/csv' });
+    expect(first.status).toBe(200);
+
+    const second = await request(app)
+      .post('/api/upload/csv')
+      .attach('file', csvBuffer(), { filename: 'products.csv', contentType: 'text/csv' });
+
+    expect(second.status).toBe(400);
+    expect(second.body.success).toBe(false);
+    expect(second.body.error.message).toMatch(/has already been uploaded/i);
+  });
+
+  it('rejects image files that have already been uploaded', async () => {
+    const app = makeApp();
+    const first = await request(app)
+      .post('/api/upload/images')
+      .attach('files', Buffer.from('fake-image'), { filename: 'product.jpg', contentType: 'image/jpeg' });
+    expect(first.status).toBe(200);
+
+    const second = await request(app)
+      .post('/api/upload/images')
+      .attach('files', Buffer.from('fake-image'), { filename: 'product.jpg', contentType: 'image/jpeg' });
+
+    expect(second.status).toBe(400);
+    expect(second.body.success).toBe(false);
+    expect(second.body.error.message).toMatch(/has already been uploaded/i);
+  });
+
   it('rejects CSV processing when the file has no recognized product columns', async () => {
     const app = makeApp();
     const upload = await request(app)

@@ -235,6 +235,10 @@ export function createApiRouter(deps: RouteDependencies): Router {
       const file = getUploadedFile(req.files?.file);
       assertCsvFile(file);
 
+      if ([...store.uploads.values()].some((upload) => upload.originalName === file.name)) {
+        throw new AppError(`The file "${file.name}" has already been uploaded`, 400);
+      }
+
       const fileId = store.newId('file');
       const dir = path.join(uploadsDir, 'csv');
       await fs.ensureDir(dir);
@@ -271,6 +275,11 @@ export function createApiRouter(deps: RouteDependencies): Router {
         assertImageFile(file);
       }
 
+      const duplicate = files.find((file) => store.images.some((image) => image.filename === file.name));
+      if (duplicate) {
+        throw new AppError(`The image "${duplicate.name}" has already been uploaded`, 400);
+      }
+
       const dir = path.join(uploadsDir, 'images');
       await fs.ensureDir(dir);
 
@@ -304,9 +313,15 @@ export function createApiRouter(deps: RouteDependencies): Router {
       }
 
       const scanned = await scanImageFolder(folderPath);
-      store.images.push(...scanned);
+      const existing = new Set(store.images.map((image) => image.filename));
+      const fresh = scanned.filter((image) => !existing.has(image.filename));
+      store.images.push(...fresh);
 
-      res.json({ success: true, message: `Image folder selected (${scanned.length} image(s) found)` });
+      res.json({
+        success: true,
+        message: `Image folder selected (${fresh.length} image(s) found)`,
+        count: fresh.length
+      });
     })
   );
 

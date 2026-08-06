@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Backend status recovery via a new `useBackendStatus` hook: the dashboard now polls `GET /api/status` periodically (every 5s while offline, every 30s while online, a 60s heartbeat while the tab is hidden, and never overlapping in-flight requests), so the connection chip recovers to "Online"/"En línea" automatically when the backend comes back.
 - Upload validation for product images: only `.jpg` and `.jpeg` files are accepted (backend `assertImageFile` + folder scan, and frontend guards with an `accept=".jpg,.jpeg"` input); the image label now reads "Product images (JPG/JPEG only)" / "Imágenes de producto (solo JPG/JPEG)".
 - The "Configuration" view moved out of the tab navigation into a gear button in the top header (next to status and language selector); the tab bar stays visible while configuration is open so any tab can be selected to return to it.
+- The validation, images, AI, sync and review tabs are disabled (non-clickable) until a CSV has been uploaded and processed, so downstream steps cannot be reached without data.
+- Multiple CSV and image uploads no longer replace each other: the upload panel keeps a running counter next to the "Product catalog (CSV)" and "Product images" labels plus an "Uploaded files" list at the bottom with every file name, persisted while navigating between tabs.
+- Duplicate uploads are rejected: uploading the same CSV or image file again shows a clear error in the panel and is also refused by the backend (by filename), and re-selecting an image folder skips files already present.
 
 ### Fixed
 - The frontend `api-service.ts` had an invalid Python-style docstring at the top and imported a non-existent `types` module; both are resolved, methods are typed against the shared API contract, and the service is exposed through a lazy singleton.

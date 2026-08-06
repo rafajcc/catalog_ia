@@ -60,18 +60,20 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Configuration')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Validation' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Validation' }));
+    await user.click(screen.getByRole('button', { name: 'Upload' }));
     expect(screen.queryByText('Configuration')).not.toBeInTheDocument();
-    expect(screen.getByText('Upload a CSV first to enable this step.')).toBeInTheDocument();
+    expect(screen.getByText('Data upload')).toBeInTheDocument();
   });
 
-  it('blocks data steps until a CSV has been uploaded', async () => {
+  it('disables the data tabs until a CSV has been uploaded', () => {
     renderWithI18n(<DashboardPage />, 'en');
 
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: 'Validation' }));
-
-    expect(screen.getByText('Upload a CSV first to enable this step.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Upload' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Validation' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Images' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'AI' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Sync' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Review' })).toBeDisabled();
   });
 
   it('enables data steps after a CSV upload provides a data id', async () => {
@@ -85,14 +87,39 @@ describe('DashboardPage', () => {
 
     const user = userEvent.setup();
     await user.upload(screen.getByLabelText(/Product catalog \(CSV\)/), new File(['a,b'], 'p.csv'));
-    await user.click(screen.getByRole('button', { name: /Upload and process CSV/ }));
+    await user.click(screen.getByRole('button', { name: /Upload CSV/ }));
 
     await waitFor(() =>
       expect(screen.getAllByText(/Data id: data-1/).length).toBeGreaterThan(0)
     );
 
+    expect(screen.getByRole('button', { name: 'Validation' })).toBeEnabled();
+
     await user.click(screen.getByRole('button', { name: 'Validation' }));
     await user.click(await screen.findByRole('button', { name: 'Validate products' }));
     expect(await screen.findByText('1 total')).toBeInTheDocument();
+  });
+
+  it('keeps a record of uploaded files across tab switches', async () => {
+    mockApi.uploadCSV.mockResolvedValue({ success: true, file_id: 'file-1' });
+    mockApi.parseCSV.mockResolvedValue({ success: true, data: { data_id: 'data-1' } });
+    mockApi.uploadImages.mockResolvedValue({ success: true });
+    renderWithI18n(<DashboardPage />, 'en');
+
+    const user = userEvent.setup();
+    await user.upload(screen.getByLabelText(/Product catalog \(CSV\)/), new File(['a,b'], 'catalog.csv'));
+    await user.click(screen.getByRole('button', { name: /Upload CSV/ }));
+    await waitFor(() => expect(screen.getAllByText(/Data id: data-1/).length).toBeGreaterThan(0));
+
+    await user.upload(screen.getByLabelText(/Product images/), [new File(['x'], 'img.jpg', { type: 'image/jpeg' })]);
+    await user.click(screen.getByRole('button', { name: 'Upload images' }));
+    await waitFor(() => expect(screen.getAllByText('(1 uploaded)')).toHaveLength(2));
+
+    await user.click(screen.getByRole('button', { name: 'Validation' }));
+    await user.click(screen.getByRole('button', { name: 'Upload' }));
+
+    expect(screen.getAllByText('(1 uploaded)')).toHaveLength(2);
+    expect(screen.getByText('catalog.csv')).toBeInTheDocument();
+    expect(screen.getByText('img.jpg')).toBeInTheDocument();
   });
 });

@@ -11,9 +11,20 @@ interface Message {
 interface UploadSectionProps {
   dataId?: string;
   onDataReady?: (dataId: string) => void;
+  uploadedCsvs?: string[];
+  uploadedImages?: string[];
+  onCsvUploaded?: (name: string) => void;
+  onImagesUploaded?: (names: string[]) => void;
 }
 
-export default function UploadSection({ dataId, onDataReady }: UploadSectionProps) {
+export default function UploadSection({
+  dataId,
+  onDataReady,
+  uploadedCsvs = [],
+  uploadedImages = [],
+  onCsvUploaded,
+  onImagesUploaded
+}: UploadSectionProps) {
   const api = getApiService();
   const { t } = useI18n();
   const [csvFile, setCsvFile] = useState<File | null>(null);
@@ -31,6 +42,10 @@ export default function UploadSection({ dataId, onDataReady }: UploadSectionProp
       setMessage({ kind: 'error', text: t('upload.errorNotCsv', { name: csvFile.name }) });
       return;
     }
+    if (uploadedCsvs.includes(csvFile.name)) {
+      setMessage({ kind: 'error', text: t('upload.errorDuplicateCsv', { name: csvFile.name }) });
+      return;
+    }
     setBusy(true);
     setMessage(null);
     try {
@@ -40,6 +55,7 @@ export default function UploadSection({ dataId, onDataReady }: UploadSectionProp
       if (id) {
         setMessage({ kind: 'success', text: t('upload.successProcessed', { id }) });
         onDataReady?.(id);
+        onCsvUploaded?.(csvFile.name);
       } else {
         setMessage({ kind: 'success', text: t('upload.successUploaded') });
       }
@@ -60,11 +76,17 @@ export default function UploadSection({ dataId, onDataReady }: UploadSectionProp
       setMessage({ kind: 'error', text: t('upload.errorNotImage', { name: invalid.name }) });
       return;
     }
+    const duplicate = imageFiles.find((file) => uploadedImages.includes(file.name));
+    if (duplicate) {
+      setMessage({ kind: 'error', text: t('upload.errorDuplicateImage', { name: duplicate.name }) });
+      return;
+    }
     setBusy(true);
     setMessage(null);
     try {
       await api.uploadImages(imageFiles);
       setMessage({ kind: 'success', text: t('upload.successImages', { count: imageFiles.length }) });
+      onImagesUploaded?.(imageFiles.map((file) => file.name));
       setImageFiles([]);
     } catch (error) {
       setMessage({ kind: 'error', text: getErrorMessage(error) });
@@ -95,7 +117,12 @@ export default function UploadSection({ dataId, onDataReady }: UploadSectionProp
       <h2>{t('upload.title')}</h2>
 
       <div className="field">
-        <label htmlFor="csv-input">{t('upload.csvLabel')}</label>
+        <label htmlFor="csv-input">
+          {t('upload.csvLabel')}
+          {uploadedCsvs.length > 0 && (
+            <span className="upload-counter">{t('upload.uploadedCsvs', { count: uploadedCsvs.length })}</span>
+          )}
+        </label>
         <input
           id="csv-input"
           type="file"
@@ -114,7 +141,12 @@ export default function UploadSection({ dataId, onDataReady }: UploadSectionProp
       </div>
 
       <div className="field">
-        <label htmlFor="images-input">{t('upload.imagesLabel')}</label>
+        <label htmlFor="images-input">
+          {t('upload.imagesLabel')}
+          {uploadedImages.length > 0 && (
+            <span className="upload-counter">{t('upload.uploadedImages', { count: uploadedImages.length })}</span>
+          )}
+        </label>
         <input
           id="images-input"
           type="file"
@@ -123,7 +155,7 @@ export default function UploadSection({ dataId, onDataReady }: UploadSectionProp
           disabled={busy}
           onChange={(event) => setImageFiles(Array.from(event.target.files ?? []))}
         />
-        <button type="button" className="btn" disabled={busy} onClick={handleImageUpload}>
+        <button type="button" className="btn primary" disabled={busy} onClick={handleImageUpload}>
           {t('upload.imagesButton')}
         </button>
       </div>
@@ -138,7 +170,7 @@ export default function UploadSection({ dataId, onDataReady }: UploadSectionProp
           placeholder={t('upload.folderPlaceholder')}
           onChange={(event) => setFolderPath(event.target.value)}
         />
-        <button type="button" className="btn" disabled={busy} onClick={handleFolderSelect}>
+        <button type="button" className="btn primary" disabled={busy} onClick={handleFolderSelect}>
           {t('upload.folderButton')}
         </button>
       </div>
@@ -146,6 +178,32 @@ export default function UploadSection({ dataId, onDataReady }: UploadSectionProp
       {dataId && (
         <div className="chips">
           <span className="chip">{t('common.dataId', { id: dataId })}</span>
+        </div>
+      )}
+
+      {(uploadedCsvs.length > 0 || uploadedImages.length > 0) && (
+        <div className="uploaded-list">
+          <h3>{t('upload.uploadedFilesTitle')}</h3>
+          {uploadedCsvs.length > 0 && (
+            <div className="uploaded-group">
+              <strong>{t('upload.uploadedCsvsTitle')}</strong>
+              <ul>
+                {uploadedCsvs.map((name, index) => (
+                  <li key={`csv-${index}`}>{name}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {uploadedImages.length > 0 && (
+            <div className="uploaded-group">
+              <strong>{t('upload.uploadedImagesTitle')}</strong>
+              <ul>
+                {uploadedImages.map((name, index) => (
+                  <li key={`img-${index}`}>{name}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 

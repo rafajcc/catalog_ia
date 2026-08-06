@@ -67,4 +67,20 @@ describe('TabNav', () => {
 
     expect(onChange).toHaveBeenCalledWith('sync');
   });
+
+  it('disables tabs marked as disabled', () => {
+    render(
+      <TabNav
+        tabs={[
+          { id: 'upload', label: 'Upload' },
+          { id: 'sync', label: 'Sync', disabled: true }
+        ]}
+        active="upload"
+        onChange={() => undefined}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Upload' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Sync' })).toBeDisabled();
+  });
 });

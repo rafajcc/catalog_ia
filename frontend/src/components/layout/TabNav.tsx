@@ -1,6 +1,7 @@
 export interface TabItem {
   id: string;
   label: string;
+  disabled?: boolean;
 }
 
 export default function TabNav({
@@ -26,14 +27,17 @@ export default function TabNav({
         <button
           key={tab.id}
           type="button"
+          disabled={tab.disabled}
           onClick={() => onChange(tab.id)}
           style={{
             background: active === tab.id ? '#eff6ff' : 'transparent',
             border: 'none',
             borderBottom: active === tab.id ? '2px solid #2563eb' : '2px solid transparent',
             padding: '0.6rem 0.9rem',
-            cursor: 'pointer',
-            fontWeight: active === tab.id ? 600 : 400
+            cursor: tab.disabled ? 'not-allowed' : 'pointer',
+            fontWeight: active === tab.id ? 600 : 400,
+            color: tab.disabled ? '#9ca3af' : '#374151',
+            opacity: tab.disabled ? 0.7 : 1
           }}
         >
           {tab.label}
