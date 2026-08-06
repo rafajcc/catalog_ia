@@ -60,16 +60,16 @@ describe('ProductNormalizer', () => {
       expect(product.tax).toBe('21');
     });
 
-    it('rounds prices to two decimals', () => {
+    it('keeps prices unchanged instead of rounding them', () => {
       const product = normalizer().normalizeSingleProduct(makeRow({ name: 'A', ean: '1', price: 19.995 }))!;
 
-      expect(product.price).toBe(20);
+      expect(product.price).toBe(19.995);
     });
 
-    it('floors stock quantities', () => {
+    it('keeps stock quantities unchanged instead of truncating them', () => {
       const product = normalizer().normalizeSingleProduct(makeRow({ name: 'A', ean: '1', quantity: 10.7 }))!;
 
-      expect(product.quantity).toBe(10);
+      expect(product.quantity).toBe(10.7);
     });
   });
 

@@ -127,16 +127,19 @@ export class ReviewStateManager {
   }
 
   private getFieldValidation(fieldKey: string): any {
+    // Limits match what PrestaShop stores in its schema
+    // (ps_product_lang, ps_product, ps_manufacturer).
     const validations = {
-      name: { type: 'string', min: 1, max: 200, pattern: /^[a-zA-Z0-9\s\-.,!?]+$/ },
+      name: { type: 'string', min: 1, max: 128 },
+      reference: { type: 'string', max: 64 },
       description_short: { type: 'string', max: 500 },
       description: { type: 'string', max: 5000 },
-      meta_title: { type: 'string', max: 60 },
-      meta_description: { type: 'string', max: 160 },
-      link_rewrite: { type: 'string', pattern: /^[a-z0-9-]+/ },
-      price: { type: 'number', min: 0, max: 1000000 },
+      meta_title: { type: 'string', max: 128 },
+      meta_description: { type: 'string', max: 512 },
+      link_rewrite: { type: 'string', max: 128, pattern: /^[a-z0-9-]+/ },
+      price: { type: 'number', min: 0, max: 1000000, decimals: 2 },
       quantity: { type: 'integer', min: 0, max: 1000000 },
-      wholesale_price: { type: 'number', min: 0, max: 1000000 }
+      wholesale_price: { type: 'number', min: 0, max: 1000000, decimals: 2 }
     };
     return validations[fieldKey] || null;
   }

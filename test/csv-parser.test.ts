@@ -78,6 +78,30 @@ describe('CSVParser', () => {
       expect(result.valid_rows).toBe(3);
       expect(result.invalid_rows).toBe(0);
     });
+
+    it('rejects prices with more than two decimals instead of rounding them', async () => {
+      const result = await parseLines([
+        'ean,name,price,wholesale_price,quantity',
+        '1234567890123,Product A,19.999,15.00,10',
+        '1234567890124,Product B,20.00,14.555,10',
+        '1234567890125,Product C,20.00,14.55,10'
+      ]);
+
+      expect(result.valid_rows).toBe(1);
+      expect(result.invalid_rows).toBe(2);
+    });
+
+    it('rejects non-integer quantities instead of truncating them', async () => {
+      const result = await parseLines([
+        'ean,name,quantity',
+        '1234567890123,Product A,10.7',
+        '1234567890124,Product B,abc',
+        '1234567890125,Product C,10'
+      ]);
+
+      expect(result.valid_rows).toBe(1);
+      expect(result.invalid_rows).toBe(2);
+    });
   });
 
   describe('Duplicate detection', () => {

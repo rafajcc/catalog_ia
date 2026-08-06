@@ -9,7 +9,7 @@ import { AppError } from './utils/error-handler';
 import { DataStore, DataSet, UploadedFile } from './store';
 import { CSVParser, CSV_TEMPLATE_HEADERS } from './modules/csv-parser/csv-parser';
 import { ProductNormalizer } from './modules/product-normalizer/product-normalizer';
-import { ProductValidator } from './modules/validator/validator';
+import { ProductValidator, getDefaultProductRules } from './modules/validator/validator';
 import { ImageMatcher } from './modules/image-matcher/image-matcher';
 import { ImageRanker } from './modules/image-ranker/image-ranker';
 import { AITextSuggester } from './modules/ai-text-suggester/ai-text-suggester';
@@ -480,10 +480,17 @@ export function createApiRouter(deps: RouteDependencies): Router {
         totalRows: csvResult.total_rows
       });
 
+      const invalidRows = csvResult.rows.filter((row) => row.errors.length > 0);
       res.json({
         success: true,
         message: 'CSV parsed successfully',
-        data: { data_id: dataId, products, summary: { total: products.length } }
+        data: {
+          data_id: dataId,
+          products,
+          invalid_rows: invalidRows.length,
+          row_errors: invalidRows.map((row) => row.errors),
+          summary: { total: products.length }
+        }
       });
     })
   );
@@ -503,7 +510,7 @@ export function createApiRouter(deps: RouteDependencies): Router {
     wrap(async (req, res) => {
       const dataset = requireDataset(store, req.params.dataId);
       const requiredFields = store.config.validation.required_fields || ['name'];
-      const validator = new ProductValidator([], requiredFields);
+      const validator = new ProductValidator(getDefaultProductRules(), requiredFields);
 
       const products = dataset.products.map((product) => {
         const result = validator.validateProduct(product, { products: dataset.products });

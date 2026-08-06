@@ -1,4 +1,4 @@
-import { ProductValidator } from '../backend/src/modules/validator/validator';
+import { ProductValidator, getDefaultProductRules } from '../backend/src/modules/validator/validator';
 import { ProductData, ValidationRule } from '../backend/src/types';
 import { makeProduct } from './helpers';
 
@@ -101,6 +101,52 @@ describe('ProductValidator', () => {
 
       expect(result.valid).toBe(false);
       expect(result.errors![0].message).toBe('ean is required');
+    });
+
+    it('rejects a number with more decimals than allowed', () => {
+      const rule: ValidationRule = { field: 'price', type: 'number', decimals: 2 };
+      const result = makeValidator([rule]).validateProduct(makeProduct({ price: 19.999 }));
+
+      expect(result.valid).toBe(false);
+      expect(result.errors![0].message).toBe('price must have at most 2 decimal places');
+
+      const ok = makeValidator([rule]).validateProduct(makeProduct({ price: 19.99 }));
+      expect(ok.valid).toBe(true);
+    });
+
+    it('rejects a non-integer value for an integer rule', () => {
+      const rule: ValidationRule = { field: 'quantity', type: 'integer', min: 0 };
+      const result = makeValidator([rule]).validateProduct(makeProduct({ quantity: 10.7 }));
+
+      expect(result.valid).toBe(false);
+      expect(result.errors![0].message).toBe('quantity must be an integer');
+
+      const ok = makeValidator([rule]).validateProduct(makeProduct({ quantity: 10 }));
+      expect(ok.valid).toBe(true);
+    });
+  });
+
+  describe('getDefaultProductRules', () => {
+    it('rejects text fields longer than the PrestaShop limits', () => {
+      const validator = makeValidator(getDefaultProductRules());
+
+      const longName = validator.validateProduct(makeProduct({ name: 'x'.repeat(129) }));
+      expect(longName.valid).toBe(false);
+      expect(longName.errors![0].message).toBe('name must be at most 128 characters');
+
+      const longReference = validator.validateProduct(makeProduct({ reference: 'x'.repeat(65) }));
+      expect(longReference.valid).toBe(false);
+      expect(longReference.errors![0].message).toBe('reference must be at most 64 characters');
+
+      const ok = validator.validateProduct(makeProduct({ name: 'x'.repeat(128), reference: 'x'.repeat(64) }));
+      expect(ok.valid).toBe(true);
+    });
+
+    it('accepts prices up to two decimals and integer quantities', () => {
+      const validator = makeValidator(getDefaultProductRules());
+      const ok = validator.validateProduct(makeProduct({ price: 19.99, wholesale_price: 15.5, quantity: 10 }));
+
+      expect(ok.valid).toBe(true);
     });
   });
 

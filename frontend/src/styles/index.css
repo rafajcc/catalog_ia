@@ -214,6 +214,12 @@ body {
   color: #991b1b;
 }
 
+.message.warning {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+
 table.data {
   width: 100%;
   border-collapse: collapse;

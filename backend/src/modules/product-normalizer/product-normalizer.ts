@@ -39,8 +39,6 @@ export class ProductNormalizer {
     };
 
     this.transformations = [
-      this.normalizePrice,
-      this.normalizeStock,
       this.validateRequiredFields,
       this.addSourceMetadata
     ];
@@ -96,23 +94,6 @@ export class ProductNormalizer {
     } else {
       return `product_${Date.now()}`;
     }
-  }
-
-  private normalizePrice(product: ProductData): ProductData {
-    if (product.price !== undefined) {
-      product.price = Math.round(product.price * 100) / 100;
-    }
-    if (product.wholesale_price !== undefined) {
-      product.wholesale_price = Math.round(product.wholesale_price * 100) / 100;
-    }
-    return product;
-  }
-
-  private normalizeStock(product: ProductData): ProductData {
-    if (product.quantity !== undefined) {
-      product.quantity = Math.floor(product.quantity);
-    }
-    return product;
   }
 
   private validateRequiredFields(product: ProductData): ProductData {

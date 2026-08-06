@@ -244,13 +244,31 @@ export class CSVParser {
 
   private parsePrice(value: string): number | undefined {
     const cleaned = value.replace(/[^0-9.,]/g, '');
-    const number = parseFloat(cleaned.replace(/,/g, ''));
+    if (!cleaned) return undefined;
+
+    // Resolve comma/dot ambiguity: with both separators the last one is the
+    // decimal separator and the other one a thousands separator.
+    let normalized: string;
+    if (cleaned.includes(',') && cleaned.includes('.')) {
+      const decimalSep = cleaned.lastIndexOf(',') > cleaned.lastIndexOf('.') ? ',' : '.';
+      const thousandsSep = decimalSep === ',' ? '.' : ',';
+      normalized = cleaned.split(thousandsSep).join('').replace(decimalSep, '.');
+    } else {
+      normalized = cleaned.replace(/,/g, '.');
+    }
+
+    // Prices are not rounded: more than 2 decimal places is an error.
+    const [, fraction = ''] = normalized.split('.');
+    if (fraction.length > 2) return undefined;
+
+    const number = parseFloat(normalized);
     return isNaN(number) || number < 0 ? undefined : number;
   }
 
   private parseQuantity(value: string): number | undefined {
-    const cleaned = value.replace(/[^0-9]/g, '');
-    const number = parseInt(cleaned, 10);
+    // Quantities are not truncated: only non-negative integers are accepted.
+    if (!/^\d+$/.test(value.trim())) return undefined;
+    const number = parseInt(value.trim(), 10);
     return isNaN(number) || number < 0 ? undefined : number;
   }
 
@@ -290,10 +308,21 @@ export class CSVParser {
     if (rawPrice && row.price === undefined) {
       errors.push({
         field: 'price',
-        message: 'Price must be a non-negative number',
+        message: 'Price must be a non-negative number with at most 2 decimal places',
         code: 'INVALID_PRICE',
         severity: 'error',
         value: rawPrice
+      });
+    }
+
+    const rawWholesalePrice = (raw['wholesale_price'] || '').trim();
+    if (rawWholesalePrice && row.wholesale_price === undefined) {
+      errors.push({
+        field: 'wholesale_price',
+        message: 'Wholesale price must be a non-negative number with at most 2 decimal places',
+        code: 'INVALID_PRICE',
+        severity: 'error',
+        value: rawWholesalePrice
       });
     }
 

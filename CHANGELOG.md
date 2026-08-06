@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Prices and stock quantities are no longer silently adjusted: `price` and `wholesale_price` cells are rejected when they have more than 2 decimal places (nothing is rounded) and `quantity` cells are rejected when they are not non-negative integers (nothing is truncated). The CSV parser flags these rows, `POST /api/process/csv` reports them via `invalid_rows`/`row_errors`, and the upload tab shows a warning listing the first row errors.
+- Text field limits matching PrestaShop are now enforced by the product validation rules: `name` max 128, `reference` max 64, `brand`/`manufacturer` max 64 (from `ps_product_lang.name`, `ps_product.reference` and `ps_manufacturer.name`); `price`/`wholesale_price` max 2 decimals, `quantity` integer, all non-negative. The review panel field metadata (`getFieldValidation`) also exposes the same limits plus `meta_title` 128, `meta_description` 512 and `link_rewrite` 128.
+- The CSV format guide in the upload tab now documents the PrestaShop text limits and the strict price/quantity rules (max 2 decimals, integers only, no rounding or truncation).
+- `ValidationRule` supports a `decimals` constraint and `number`/`integer` rule types are enforced distinctly (`Number.isInteger` for integers, decimal-place count for numbers).
+- CSV parser tests, normalizer tests, validator tests, API route tests and upload tab tests updated/added for the new strict rules.
+
+### Added
 - CSV columns `stock` (a synonym for `quantity`) and `weight` removed from the CSV template, parser, normalizer, validator, AI suggestion context, PrestaShop sync payloads and the format guide: the header is now 14 columns (`ean,reference,name,sku,price,wholesale_price,quantity,brand,manufacturer,category,tax,description_short,description,image_hints`).
 - The `tax` CSV column is now the PrestaShop tax rules group ID (`tax_rules_group_id`, as configured in each store) instead of a percentage rate; the parser no longer converts it and the sync payload uses the value directly as the tax group ID.
 - Empty `price`, `wholesale_price` and `quantity` cells no longer overwrite existing store values: `syncSingleProduct` only includes those fields in the update payload when they are provided.

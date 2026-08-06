@@ -300,6 +300,24 @@ describe('API routes', () => {
     expect(res.body.error.message).toMatch(/no products could be extracted/i);
   });
 
+  it('reports invalid rows when prices or quantities do not comply', async () => {
+    const app = makeApp();
+    const upload = await request(app)
+      .post('/api/upload/csv')
+      .attach('file', Buffer.from(`${CSV_HEADER}\n8412345678901,REF-A,Producto A,SKU-A,19.999,15.00,10,Marca A,Marca A S.A.,Categoria A,1,Desc corta A,"Desc larga A",EAN-1\n8412345678902,REF-B,Producto B,SKU-B,9.50,7.00,2.5,Marca B,Marca B S.A.,Categoria B,1,Desc corta B,"Desc larga B",EAN-2\n8412345678903,REF-C,Producto C,SKU-C,3.00,2.00,1,Marca C,Marca C S.A.,Categoria C,1,Desc corta C,"Desc larga C",EAN-3`), {
+        filename: 'badrows.csv',
+        contentType: 'text/csv'
+      });
+    expect(upload.status).toBe(200);
+
+    const res = await request(app).post('/api/process/csv').send({ fileId: upload.body.file_id });
+    expect(res.status).toBe(200);
+    expect(res.body.data.invalid_rows).toBe(2);
+    expect(res.body.data.row_errors).toHaveLength(2);
+    expect(res.body.data.row_errors[0][0].code).toBe('INVALID_PRICE');
+    expect(res.body.data.row_errors[1][0].code).toBe('INVALID_QUANTITY');
+  });
+
   it('validates products and stores the results', async () => {
     const app = makeApp();
     const dataId = await uploadAndParse(app);

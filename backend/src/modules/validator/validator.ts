@@ -9,6 +9,24 @@ import {
   ValidationRule
 } from '../../types';
 
+// Default rules aligned with what PrestaShop supports:
+// - ps_product_lang.name is varchar(128)
+// - ps_product.reference is varchar(64)
+// - ps_manufacturer.name / ps_manufacturer_lang.name are varchar(64)
+// - prices are stored with up to 2 decimal places
+// - stock quantity is an integer
+export function getDefaultProductRules(): ValidationRule[] {
+  return [
+    { field: 'name', type: 'string', max: 128 },
+    { field: 'reference', type: 'string', max: 64 },
+    { field: 'brand', type: 'string', max: 64 },
+    { field: 'manufacturer', type: 'string', max: 64 },
+    { field: 'price', type: 'number', min: 0, decimals: 2 },
+    { field: 'wholesale_price', type: 'number', min: 0, decimals: 2 },
+    { field: 'quantity', type: 'integer', min: 0 }
+  ];
+}
+
 export class ProductValidator {
   private rules: ValidationRule[];
   private requiredFields: Set<string>;
@@ -79,11 +97,20 @@ export class ProductValidator {
         if (typeof value !== 'number' || isNaN(value)) {
           return { valid: false, error: `${rule.field} must be a number` };
         }
+        if (rule.type === 'integer' && !Number.isInteger(value)) {
+          return { valid: false, error: `${rule.field} must be an integer` };
+        }
         if (rule.min !== undefined && value < rule.min) {
           return { valid: false, error: `${rule.field} must be at least ${rule.min}` };
         }
         if (rule.max !== undefined && value > rule.max) {
           return { valid: false, error: `${rule.field} must be at most ${rule.max}` };
+        }
+        if (rule.decimals !== undefined && rule.type === 'number') {
+          const decimals = (String(value).split('.')[1] || '').length;
+          if (decimals > rule.decimals) {
+            return { valid: false, error: `${rule.field} must have at most ${rule.decimals} decimal places` };
+          }
         }
         break;
       }

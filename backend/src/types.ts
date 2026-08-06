@@ -89,6 +89,7 @@ export interface ValidationRule {
   required?: boolean;
   min?: number;
   max?: number;
+  decimals?: number;
   pattern?: RegExp;
   custom?: (value: any) => ValidationResult;
 }
