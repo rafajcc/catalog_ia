@@ -9,12 +9,15 @@ import fileUpload from 'express-fileupload';
 import { ErrorHandler } from './utils/error-handler';
 import { DataStore } from './store';
 import { createApiRouter, RouteDependencies } from './routes';
+import { ConfigPersistence } from './modules/config-persistence/config-persistence';
 import { PrestaShopConfig } from './types';
 import { PrestaShopClient } from './modules/prestashop-client/prestashop-client';
 
 export interface CreateAppOptions {
   store?: DataStore;
   uploadsDir?: string;
+  configFile?: string;
+  configSecret?: string;
   prestashopClientFactory?: (config: PrestaShopConfig) => PrestaShopClient;
 }
 
@@ -71,10 +74,22 @@ export default function createApp(options: CreateAppOptions = {}) {
 
   // API routes
   const store = options.store || new DataStore();
+
+  let configPersistence: ConfigPersistence | undefined;
+  const configFile = options.configFile || process.env.CONFIG_FILE;
+  if (configFile) {
+    configPersistence = new ConfigPersistence(configFile, options.configSecret || process.env.CONFIG_SECRET);
+    const persisted = configPersistence.load();
+    if (persisted) {
+      store.config = persisted;
+    }
+  }
+
   const routeDeps: RouteDependencies = {
     store,
     uploadsDir,
-    prestashopClientFactory: options.prestashopClientFactory
+    prestashopClientFactory: options.prestashopClientFactory,
+    configPersistence
   };
   app.use('/api', createApiRouter(routeDeps));
 

@@ -16,6 +16,8 @@ const AI_PROVIDERS: Array<{ value: AIProviderName; label: string }> = [
   { value: 'openrouter', label: 'OpenRouter' }
 ];
 
+const PRESTASHOP_VERSIONS = ['1.6', '1.7', '8'];
+
 export default function ConfigurationForm() {
   const api = getApiService();
   const { t } = useI18n();
@@ -125,13 +127,18 @@ export default function ConfigurationForm() {
       </div>
       <div className="field">
         <label htmlFor="ps-version">{t('config.version')}</label>
-        <input
+        <select
           id="ps-version"
-          type="text"
           value={version}
           disabled={busy}
           onChange={(event) => setVersion(event.target.value)}
-        />
+        >
+          {PRESTASHOP_VERSIONS.map((versionOption) => (
+            <option key={versionOption} value={versionOption}>
+              {versionOption}
+            </option>
+          ))}
+        </select>
       </div>
       <div className="field">
         <label htmlFor="ps-language">{t('config.languageId')}</label>

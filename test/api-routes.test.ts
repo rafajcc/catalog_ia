@@ -29,11 +29,14 @@ describe('API routes', () => {
     await fs.remove(uploadsDir);
   });
 
-  function makeApp(options: { fakePrestashop?: boolean } = {}) {
+  function makeApp(options: { fakePrestashop?: boolean; configFile?: string } = {}) {
     const opts: any = { uploadsDir };
     if (options.fakePrestashop) {
       const fakeClient = { testConnection: () => Promise.resolve(true) } as unknown as PrestaShopClient;
       opts.prestashopClientFactory = () => fakeClient;
+    }
+    if (options.configFile) {
+      opts.configFile = options.configFile;
     }
     return createApp(opts);
   }
@@ -335,6 +338,27 @@ describe('API routes', () => {
   it('returns 404 when validating unknown data', async () => {
     const res = await request(makeApp()).post('/api/validate/products/unknown');
     expect(res.status).toBe(404);
+  });
+
+  it('persists the configuration across app instances with encrypted secrets', async () => {
+    const configFile = path.join(uploadsDir, 'config.json');
+    const first = makeApp({ configFile });
+
+    const saved = await request(first)
+      .put('/api/config')
+      .send({ prestashop: { base_url: 'https://shop.example.com', api_key: 'persisted-secret', version: '8' } });
+    expect(saved.status).toBe(200);
+    expect(saved.body.prestashop.base_url).toBe('https://shop.example.com');
+
+    const raw = fs.readFileSync(configFile, 'utf8');
+    expect(raw).not.toContain('persisted-secret');
+
+    const second = makeApp({ configFile });
+    const loaded = await request(second).get('/api/config');
+    expect(loaded.status).toBe(200);
+    expect(loaded.body.prestashop.base_url).toBe('https://shop.example.com');
+    expect(loaded.body.prestashop.api_key).toBe('persisted-secret');
+    expect(loaded.body.prestashop.version).toBe('8');
   });
 
   it('merges products from multiple uploaded CSVs into a single dataset', async () => {

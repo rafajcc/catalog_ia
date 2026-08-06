@@ -18,6 +18,7 @@
     "test:image-matcher": "jest --testPathPattern=image-matcher",
     "test:image-ranker": "jest --testPathPattern=image-ranker",
     "test:review-state": "jest --testPathPattern=review-state",
+    "test:config-persistence": "jest --testPathPattern=config-persistence",
     "test:audit-log": "jest --testPathPattern=audit-log",
     "test:logger": "jest --testPathPattern=logger",
     "test:error-handler": "jest --testPathPattern=error-handler",

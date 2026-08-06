@@ -1,12 +1,17 @@
 // Main entry point for the CatalogIA backend application.
 
+import path from 'path';
 import createApp from './app';
 import { ErrorHandler } from './utils/error-handler';
 import { logger } from './utils/logger';
 import type { Server } from 'http';
 
 const PORT = process.env.PORT || 3000;
-const app = createApp();
+// The configuration file is persisted with encrypted secrets; override the
+// default location with the CONFIG_FILE environment variable and the
+// encryption secret with CONFIG_SECRET.
+const configFile = process.env.CONFIG_FILE || path.resolve(process.cwd(), 'config.json');
+const app = createApp({ configFile });
 let server: Server | undefined;
 
 const startServer = async (): Promise<void> => {

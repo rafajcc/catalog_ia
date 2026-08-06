@@ -22,7 +22,7 @@ describe('ConfigurationForm', () => {
   it('loads the current configuration on mount', async () => {
     mockApi.getConfiguration.mockResolvedValue({
       success: true,
-      prestashop: { base_url: 'https://shop.example.com', api_key: 'ps-key', version: '8.0', language_id: 2 },
+      prestashop: { base_url: 'https://shop.example.com', api_key: 'ps-key', version: '8', language_id: 2 },
       ai: { provider: 'openai', model: 'gpt-4o', language: 'en', api_key: 'ai-key' }
     });
 
@@ -30,7 +30,7 @@ describe('ConfigurationForm', () => {
 
     expect(await screen.findByDisplayValue('https://shop.example.com')).toBeInTheDocument();
     expect(screen.getByDisplayValue('ps-key')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('8.0')).toBeInTheDocument();
+    expect((screen.getByLabelText('Version') as HTMLSelectElement).value).toBe('8');
     expect(screen.getByDisplayValue('2')).toBeInTheDocument();
     expect((screen.getByLabelText('Provider') as HTMLSelectElement).value).toBe('openai');
     expect(screen.getByDisplayValue('gpt-4o')).toBeInTheDocument();

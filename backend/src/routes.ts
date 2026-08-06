@@ -16,6 +16,7 @@ import { AITextSuggester } from './modules/ai-text-suggester/ai-text-suggester';
 import { ReviewStateManager } from './modules/review-state/review-state';
 import { SyncService } from './modules/sync-service/sync-service';
 import { PrestaShopClient } from './modules/prestashop-client/prestashop-client';
+import { ConfigPersistence } from './modules/config-persistence/config-persistence';
 import {
   AIConfig,
   AIResponse,
@@ -31,6 +32,7 @@ export interface RouteDependencies {
   store: DataStore;
   uploadsDir?: string;
   prestashopClientFactory?: (config: PrestaShopConfig) => PrestaShopClient;
+  configPersistence?: ConfigPersistence;
 }
 
 type AsyncHandler = (req: Request, res: Response, next: NextFunction) => Promise<void>;
@@ -221,6 +223,7 @@ export function createApiRouter(deps: RouteDependencies): Router {
     if (body.image_matcher) next.image_matcher = { ...next.image_matcher, ...body.image_matcher };
 
     store.config = next;
+    deps.configPersistence?.save(next);
     res.json({ success: true, message: 'Configuration saved', ...store.config });
   });
 
