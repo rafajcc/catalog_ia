@@ -229,6 +229,8 @@ describe('UploadSection', () => {
     expect(screen.getByText('ean')).toBeInTheDocument();
     expect(screen.getByText('name')).toBeInTheDocument();
     expect(screen.getByText('Sí')).toBeInTheDocument();
+    expect(screen.queryByText('stock')).not.toBeInTheDocument();
+    expect(screen.queryByText('weight')).not.toBeInTheDocument();
     expect(screen.getByText(/8412345678901,REF-001/)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Ver guía de formato del CSV' }));

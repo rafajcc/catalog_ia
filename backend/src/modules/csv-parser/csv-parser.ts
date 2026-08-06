@@ -21,12 +21,10 @@ export const CSV_TEMPLATE_HEADERS = [
   'price',
   'wholesale_price',
   'quantity',
-  'stock',
   'brand',
   'manufacturer',
   'category',
   'tax',
-  'weight',
   'description_short',
   'description',
   'image_hints'
@@ -57,12 +55,10 @@ export class CSVParser {
       'price': 'price',
       'wholesale_price': 'wholesale_price',
       'quantity': 'quantity',
-      'stock': 'quantity',
       'brand': 'brand',
       'manufacturer': 'manufacturer',
       'category': 'category',
       'tax': 'tax',
-      'weight': 'weight',
       'image_hints': 'image_hints'
     };
   }
@@ -233,12 +229,7 @@ export class CSVParser {
       case 'wholesale_price':
         return this.parsePrice(value);
       case 'quantity':
-      case 'stock':
         return this.parseQuantity(value);
-      case 'tax':
-        return this.parseTax(value);
-      case 'weight':
-        return this.parseWeight(value);
       default:
         return value.trim();
     }
@@ -260,18 +251,6 @@ export class CSVParser {
   private parseQuantity(value: string): number | undefined {
     const cleaned = value.replace(/[^0-9]/g, '');
     const number = parseInt(cleaned, 10);
-    return isNaN(number) || number < 0 ? undefined : number;
-  }
-
-  private parseTax(value: string): number | undefined {
-    const cleaned = value.replace(/[^0-9.,]/g, '');
-    const number = parseFloat(cleaned);
-    return isNaN(number) || number < 0 || number > 100 ? undefined : number / 100;
-  }
-
-  private parseWeight(value: string): number | undefined {
-    const cleaned = value.replace(/[^0-9.,]/g, '');
-    const number = parseFloat(cleaned);
     return isNaN(number) || number < 0 ? undefined : number;
   }
 
@@ -318,7 +297,7 @@ export class CSVParser {
       });
     }
 
-    const rawQuantity = (raw['quantity'] || raw['stock'] || '').trim();
+    const rawQuantity = (raw['quantity'] || '').trim();
     if (rawQuantity && row.quantity === undefined) {
       errors.push({
         field: 'quantity',

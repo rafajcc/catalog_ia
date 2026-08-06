@@ -306,14 +306,23 @@ export class PrestaShopClient {
           name: { [this.config.language_id.toString()]: product.name || '' },
           description: { [this.config.language_id.toString()]: product.description || '' },
           description_short: { [this.config.language_id.toString()]: product.description_short || '' },
-          price: product.price,
-          wholesale_price: product.wholesale_price,
-          quantity: product.quantity,
-          weight: product.weight,
-          tax_rules_group_id: product.tax ? 1 : 0, // Simplified tax handling
           active: true,
           reference: product.reference || product.sku
         };
+
+        // Only overwrite fields that were provided, so empty cells keep the store values
+        if (product.price !== undefined) {
+          productUpdate.price = product.price;
+        }
+        if (product.wholesale_price !== undefined) {
+          productUpdate.wholesale_price = product.wholesale_price;
+        }
+        if (product.quantity !== undefined) {
+          productUpdate.quantity = product.quantity;
+        }
+        if (product.tax !== undefined) {
+          productUpdate.tax_rules_group_id = Number(product.tax);
+        }
 
         result = await this.updateProduct(productUpdate);
       } else {
@@ -322,16 +331,21 @@ export class PrestaShopClient {
           name: { [this.config.language_id.toString()]: product.name || '' },
           description: { [this.config.language_id.toString()]: product.description || '' },
           description_short: { [this.config.language_id.toString()]: product.description_short || '' },
-          price: product.price,
-          wholesale_price: product.wholesale_price,
-          quantity: product.quantity,
-          weight: product.weight,
-          tax_rules_group_id: product.tax ? 1 : 0,
           active: true,
           reference: product.reference || product.sku,
           ean13: product.ean,
           link_rewrite: this.generateSlug(product.name || '')
         };
+
+        if (product.price !== undefined) {
+          newProduct.price = product.price;
+        }
+        if (product.wholesale_price !== undefined) {
+          newProduct.wholesale_price = product.wholesale_price;
+        }
+        if (product.tax !== undefined) {
+          newProduct.tax_rules_group_id = Number(product.tax);
+        }
 
         result = await this.createProduct(newProduct);
       }

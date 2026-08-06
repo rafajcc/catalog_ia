@@ -408,8 +408,7 @@ describe('PrestaShopClient', () => {
       ean: '4006381333931',
       price: 19.99,
       wholesale_price: 10,
-      weight: 1.5,
-      tax: 21,
+      tax: '21',
       selected_images: []
     };
 
@@ -423,6 +422,7 @@ describe('PrestaShopClient', () => {
 
       expect(fake.patch).not.toHaveBeenCalled();
       expect(fake.post.mock.calls[0][1]).toContain('<link_rewrite>great-product</link_rewrite>');
+      expect(fake.post.mock.calls[0][1]).toContain('<tax_rules_group_id>21</tax_rules_group_id>');
       expect(result).toMatchObject({ success: true, product_id: '123' });
     });
 
@@ -437,6 +437,28 @@ describe('PrestaShopClient', () => {
       expect(fake.post).not.toHaveBeenCalled();
       expect(fake.patch).toHaveBeenCalledWith('/api/products/9', expect.any(String));
       expect(fake.patch.mock.calls[0][1]).toContain('<reference>REF-1</reference>');
+      expect(fake.patch.mock.calls[0][1]).toContain('<tax_rules_group_id>21</tax_rules_group_id>');
+      expect(result).toMatchObject({ success: true, product_id: '9' });
+    });
+
+    it('does not overwrite price or stock when the CSV cells are empty', async () => {
+      const fake = makeFakeClient();
+      fake.get.mockResolvedValueOnce({ data: productFoundXml });
+      fake.patch.mockResolvedValueOnce({ data: '<prestashop><product id="9"/></prestashop>' });
+      const client = makeClient(fake);
+
+      const result = await client.syncSingleProduct({
+        ...product,
+        price: undefined,
+        wholesale_price: undefined,
+        quantity: undefined
+      });
+
+      const xml = fake.patch.mock.calls[0][1] as string;
+      expect(xml).not.toContain('<price>');
+      expect(xml).not.toContain('<wholesale_price>');
+      expect(xml).not.toContain('<quantity>');
+      expect(fake.put).not.toHaveBeenCalled();
       expect(result).toMatchObject({ success: true, product_id: '9' });
     });
 

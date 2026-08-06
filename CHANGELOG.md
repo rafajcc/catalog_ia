@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- CSV columns `stock` (a synonym for `quantity`) and `weight` removed from the CSV template, parser, normalizer, validator, AI suggestion context, PrestaShop sync payloads and the format guide: the header is now 14 columns (`ean,reference,name,sku,price,wholesale_price,quantity,brand,manufacturer,category,tax,description_short,description,image_hints`).
+- The `tax` CSV column is now the PrestaShop tax rules group ID (`tax_rules_group_id`, as configured in each store) instead of a percentage rate; the parser no longer converts it and the sync payload uses the value directly as the tax group ID.
+- Empty `price`, `wholesale_price` and `quantity` cells no longer overwrite existing store values: `syncSingleProduct` only includes those fields in the update payload when they are provided.
+- The CSV format guide intro now states that any field containing a comma must be wrapped in double quotes (applies to all columns), and the column descriptions mention that empty price/wholesale price/stock keep the existing store values.
+
 ### Added
 - `LICENSE` (MIT) and `CHANGELOG.md` files referenced from the README.
 - Unit tests for `logger`, `error-handler`, and `ai-text-suggester` (mock provider, no API calls).
@@ -34,10 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multiple CSV and image uploads no longer replace each other: the upload panel keeps a running counter next to the "Product catalog (CSV)" and "Product images" labels plus an "Uploaded files" list at the bottom with every file name, persisted while navigating between tabs.
 - Duplicate uploads are rejected: uploading the same CSV or image file again shows a clear error in the panel and is also refused by the backend (by filename), and re-selecting an image folder skips files already present.
 - Uploaded-file management in the upload panel: the "Uploaded files" list is now backed by `GET /api/uploads` and supports per-file and delete-all removal (`DELETE /api/uploads/csv/:id`, `DELETE /api/uploads/images/:id`, `DELETE /api/uploads/csv/all`, `DELETE /api/uploads/images/all`) with success messages, and the CSV/data tabs re-lock when every CSV has been deleted.
-- CSV template download: a "Download template" button in the upload panel fetches `GET /api/template/csv` and saves `catalog_template.csv` (16 ordered columns: `ean,reference,name,sku,price,wholesale_price,quantity,stock,brand,manufacturer,category,tax,weight,description_short,description,image_hints`).
-- CSV upload format validation: uploads are rejected when the column count differs from the 16 expected columns or the required headers are missing (`assertCsvFormat` in `backend/src/routes.ts`, with a "Download the template" hint); cell content is deliberately not validated here since data validation happens in the next tab.
+- CSV template download: a "Download template" button in the upload panel fetches `GET /api/template/csv` and saves `catalog_template.csv` (14 ordered columns: `ean,reference,name,sku,price,wholesale_price,quantity,brand,manufacturer,category,tax,description_short,description,image_hints`).
+- CSV upload format validation: uploads are rejected when the column count differs from the 14 expected columns or the required headers are missing (`assertCsvFormat` in `backend/src/routes.ts`, with a "Download the template" hint); cell content is deliberately not validated here since data validation happens in the next tab.
 - CSV upload success message now shows the uploaded file name (`upload.successUploaded`), and new i18n keys cover template download and deleted CSV/image/all messages in Spanish and English.
-- CSV format guide in the upload panel: a "?" button next to the "Product catalog (CSV)" label expands an inline, localized guide describing the 16 expected columns (with required flag, value formats and examples) plus a ready-to-fill example row and a hint pointing to the template download.
+- CSV format guide in the upload panel: a "?" button next to the "Product catalog (CSV)" label expands an inline, localized guide describing the 14 expected columns (with required flag, value formats and examples) plus a ready-to-fill example row and a hint pointing to the template download.
 
 ### Fixed
 - The Images tab was enabled as soon as a CSV was processed even without any uploaded image; it now stays disabled until at least one product image is uploaded (and re-locks if all images are deleted).

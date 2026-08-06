@@ -184,8 +184,8 @@ export class ProductValidator {
     return typeof stock === 'number' && stock >= 0 && stock <= 1000000;
   }
 
-  validateTaxRate(tax: number): boolean {
-    return typeof tax === 'number' && tax >= 0 && tax <= 1;
+  validateTaxGroupId(tax: number): boolean {
+    return typeof tax === 'number' && Number.isInteger(tax) && tax > 0;
   }
 
   getValidationSummary(products: ProductData[]): any {

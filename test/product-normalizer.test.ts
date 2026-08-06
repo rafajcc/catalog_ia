@@ -54,16 +54,10 @@ describe('ProductNormalizer', () => {
       expect(norm.normalizeSingleProduct(makeRow({ name: 'B', reference: 'REF-01' }))!.id).toBe('ref_REF-01');
     });
 
-    it('converts percentage tax rates to decimal', () => {
-      const product = normalizer().normalizeSingleProduct(makeRow({ name: 'A', ean: '1', tax: 21 }))!;
+    it('keeps the tax rules group id unchanged', () => {
+      const product = normalizer().normalizeSingleProduct(makeRow({ name: 'A', ean: '1', tax: '21' }))!;
 
-      expect(product.tax).toBe(0.21);
-    });
-
-    it('leaves decimal tax rates unchanged', () => {
-      const product = normalizer().normalizeSingleProduct(makeRow({ name: 'A', ean: '1', tax: 0.1 }))!;
-
-      expect(product.tax).toBe(0.1);
+      expect(product.tax).toBe('21');
     });
 
     it('rounds prices to two decimals', () => {
@@ -113,14 +107,14 @@ describe('ProductNormalizer', () => {
 
       expect(product.status).toBe('warning');
       expect(product.validation_errors.some(e => e.field === 'name')).toBe(true);
-      expect(product.warnings).toContain('Product missing price - using AI suggestions');
+      expect(product.warnings).toContain('Product missing price - will keep the existing store price');
     });
 
     it('adds warnings for missing price, stock, and identifiers', () => {
       const product = normalizer().normalizeSingleProduct(makeRow({ name: 'A' }))!;
 
-      expect(product.warnings).toContain('Product missing price - using AI suggestions');
-      expect(product.warnings).toContain('Product missing stock quantity');
+      expect(product.warnings).toContain('Product missing price - will keep the existing store price');
+      expect(product.warnings).toContain('Product missing stock quantity - will keep the existing store stock');
       expect(product.warnings).toContain('Product missing EAN and reference - manual matching required');
     });
 

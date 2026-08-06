@@ -24,12 +24,10 @@ export class ProductNormalizer {
       ['price', 'price'],
       ['wholesale_price', 'wholesale_price'],
       ['quantity', 'quantity'],
-      ['stock', 'quantity'],
       ['brand', 'brand'],
       ['manufacturer', 'manufacturer'],
       ['category', 'category'],
       ['tax', 'tax'],
-      ['weight', 'weight'],
       ['image_hints', 'image_hints']
     ]);
 
@@ -41,7 +39,6 @@ export class ProductNormalizer {
     };
 
     this.transformations = [
-      this.normalizeTaxRate,
       this.normalizePrice,
       this.normalizeStock,
       this.validateRequiredFields,
@@ -101,13 +98,6 @@ export class ProductNormalizer {
     }
   }
 
-  private normalizeTaxRate(product: ProductData): ProductData {
-    if (product.tax !== undefined && product.tax > 1) {
-      product.tax = product.tax / 100;
-    }
-    return product;
-  }
-
   private normalizePrice(product: ProductData): ProductData {
     if (product.price !== undefined) {
       product.price = Math.round(product.price * 100) / 100;
@@ -140,11 +130,11 @@ export class ProductNormalizer {
     }
 
     if (!product.price) {
-      warnings.push('Product missing price - using AI suggestions');
+      warnings.push('Product missing price - will keep the existing store price');
     }
 
     if (!product.quantity) {
-      warnings.push('Product missing stock quantity');
+      warnings.push('Product missing stock quantity - will keep the existing store stock');
     }
 
     if (!product.ean && !product.reference) {

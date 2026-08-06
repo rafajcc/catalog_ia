@@ -17,19 +17,17 @@ const CSV_GUIDE_COLUMNS: Array<{ key: string; required: boolean }> = [
   { key: 'price', required: false },
   { key: 'wholesale_price', required: false },
   { key: 'quantity', required: false },
-  { key: 'stock', required: false },
   { key: 'brand', required: false },
   { key: 'manufacturer', required: false },
   { key: 'category', required: false },
   { key: 'tax', required: false },
-  { key: 'weight', required: false },
   { key: 'description_short', required: false },
   { key: 'description', required: false },
   { key: 'image_hints', required: false }
 ];
 
 const CSV_GUIDE_EXAMPLE =
-  '8412345678901,REF-001,Laptop Pro,LP15-001,999.99,899.99,50,50,Dell,Dell Inc.,Electronics,21,2.5,Desc corta,"Descripción larga con comas",EAN-8412345678901';
+  '8412345678901,REF-001,Laptop Pro,LP15-001,999.99,899.99,50,Dell,Dell Inc.,Electronics,1,Desc corta,"Descripción larga con comas",EAN-8412345678901';
 
 interface UploadSectionProps {
   onDataReady?: (dataId: string) => void;

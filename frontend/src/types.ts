@@ -3,7 +3,7 @@
 export type ProductField =
   | 'ean' | 'ean13' | 'reference' | 'sku' | 'name' | 'description'
   | 'description_short' | 'price' | 'wholesale_price' | 'quantity'
-  | 'stock' | 'brand' | 'manufacturer' | 'category' | 'tax' | 'weight'
+  | 'brand' | 'manufacturer' | 'category' | 'tax'
   | 'image_hints';
 
 export type Severity = 'error' | 'warning';
@@ -37,8 +37,7 @@ export interface ProductData {
   quantity?: number;
   brand?: string;
   category?: string;
-  tax?: number;
-  weight?: number;
+  tax?: string;
   specifications?: string;
   use_case?: string;
   selected_images?: ImageFile[];

@@ -6,12 +6,12 @@ import createApp from '../backend/src/app';
 import { PrestaShopClient } from '../backend/src/modules/prestashop-client/prestashop-client';
 
 const CSV_HEADER =
-  'ean,reference,name,sku,price,wholesale_price,quantity,stock,brand,manufacturer,category,tax,weight,description_short,description,image_hints';
+  'ean,reference,name,sku,price,wholesale_price,quantity,brand,manufacturer,category,tax,description_short,description,image_hints';
 const CSV_CONTENT = [
   CSV_HEADER,
-  '8412345678901,REF-A,Producto A,SKU-A,19.99,15.00,10,10,Marca A,Marca A S.A.,Categoria A,21,1.5,Desc corta A,"Descripcion larga A",EAN-1',
-  '8412345678902,REF-B,Producto B,SKU-B,9.50,7.00,5,5,Marca B,Marca B S.A.,Categoria B,21,0.8,Desc corta B,"Descripcion larga B",EAN-2',
-  'bad-ean,REF-C,Producto C,SKU-C,3.00,2.00,1,1,Marca C,Marca C S.A.,Categoria C,21,0.2,Desc corta C,"Descripcion larga C",EAN-3'
+  '8412345678901,REF-A,Producto A,SKU-A,19.99,15.00,10,Marca A,Marca A S.A.,Categoria A,1,Desc corta A,"Descripcion larga A",EAN-1',
+  '8412345678902,REF-B,Producto B,SKU-B,9.50,7.00,5,Marca B,Marca B S.A.,Categoria B,1,Desc corta B,"Descripcion larga B",EAN-2',
+  'bad-ean,REF-C,Producto C,SKU-C,3.00,2.00,1,Marca C,Marca C S.A.,Categoria C,1,Desc corta C,"Descripcion larga C",EAN-3'
 ].join('\n');
 
 function csvBuffer(): Buffer {
@@ -245,16 +245,16 @@ describe('API routes', () => {
       .attach('file', Buffer.from('foo,bar\n1,2\n3,4'), { filename: 'rubbish.csv', contentType: 'text/csv' });
     expect(upload.status).toBe(400);
     expect(upload.body.success).toBe(false);
-    expect(upload.body.error.message).toMatch(/2 column\(s\) but 16 are expected/i);
+    expect(upload.body.error.message).toMatch(/2 column\(s\) but 14 are expected/i);
     expect(upload.body.error.code).toBe('CSV_COLUMN_COUNT_MISMATCH');
-    expect(upload.body.error.details).toEqual({ name: 'rubbish.csv', columns: 2, expected: 16 });
+    expect(upload.body.error.details).toEqual({ name: 'rubbish.csv', columns: 2, expected: 14 });
   });
 
   it('rejects CSV uploads with the right column count but wrong headers', async () => {
-    const wrongHeaders = Array.from({ length: 16 }, (_, i) => `col${i + 1}`).join(',');
+    const wrongHeaders = Array.from({ length: 14 }, (_, i) => `col${i + 1}`).join(',');
     const res = await request(makeApp())
       .post('/api/upload/csv')
-      .attach('file', Buffer.from(`${wrongHeaders}\n1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16`), {
+      .attach('file', Buffer.from(`${wrongHeaders}\n1,2,3,4,5,6,7,8,9,10,11,12,13,14`), {
         filename: 'wrongheaders.csv',
         contentType: 'text/csv'
       });

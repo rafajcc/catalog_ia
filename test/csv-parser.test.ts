@@ -78,19 +78,6 @@ describe('CSVParser', () => {
       expect(result.valid_rows).toBe(3);
       expect(result.invalid_rows).toBe(0);
     });
-
-    it('maps the stock column to quantity', async () => {
-      const result = await parseLines([
-        'name,stock,qty',
-        'Product A,100,100',
-        'Product B,50,50',
-        'Product C,abc,0'
-      ]);
-
-      expect(result.total_rows).toBe(3);
-      expect(result.valid_rows).toBe(2);
-      expect(result.invalid_rows).toBe(1);
-    });
   });
 
   describe('Duplicate detection', () => {

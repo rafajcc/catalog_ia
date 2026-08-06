@@ -81,8 +81,7 @@ export class AITextSuggester {
 
     if (product.brand) context.push(`Brand: ${product.brand}`);
     if (product.category) context.push(`Category: ${product.category}`);
-    if (product.tax) context.push(`Tax: ${product.tax * 100}%`);
-    if (product.weight) context.push(`Weight: ${product.weight}kg`);
+    if (product.tax) context.push(`Tax group ID: ${product.tax}`);
     if (product.wholesale_price) context.push(`Wholesale price: $${product.wholesale_price}`);
 
     return context.join(', ') + '. ';

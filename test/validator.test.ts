@@ -172,13 +172,14 @@ describe('ProductValidator', () => {
       expect(validator.validateStock(-1)).toBe(false);
     });
 
-    it('validateTaxRate accepts rates between 0 and 1', () => {
+    it('validateTaxGroupId accepts positive integers', () => {
       const validator = makeValidator();
 
-      expect(validator.validateTaxRate(0)).toBe(true);
-      expect(validator.validateTaxRate(1)).toBe(true);
-      expect(validator.validateTaxRate(0.21)).toBe(true);
-      expect(validator.validateTaxRate(1.1)).toBe(false);
+      expect(validator.validateTaxGroupId(1)).toBe(true);
+      expect(validator.validateTaxGroupId(21)).toBe(true);
+      expect(validator.validateTaxGroupId(0)).toBe(false);
+      expect(validator.validateTaxGroupId(2.5)).toBe(false);
+      expect(validator.validateTaxGroupId(-1)).toBe(false);
     });
   });
 

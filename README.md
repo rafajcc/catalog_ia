@@ -384,14 +384,13 @@ The application supports flexible CSV column mapping:
 - `name` - Product name
 - `description_short` - Short description
 - `description` - Full description
-- `price` - Price
-- `wholesale_price` - Wholesale price
-- `quantity` / `stock` - Stock quantity
+- `price` - Price (leave empty to keep the store value)
+- `wholesale_price` - Wholesale price (leave empty to keep the store value)
+- `quantity` - Stock quantity (leave empty to keep the store stock)
 - `brand` - Brand name
 - `manufacturer` - Manufacturer
 - `category` - Product category
-- `tax` - Tax rate
-- `weight` - Product weight
+- `tax` - PrestaShop tax rules group ID (as configured in the store)
 - `image_hints` - Image file naming hints
 
 ### AI Provider Support
