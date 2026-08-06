@@ -44,6 +44,7 @@ export class PrestaShopClient {
   private buildEndpoints(_version: string): PrestaShopAPIEndpoints {
     const base = '/api';
     return {
+      root: base,
       products: `${base}/products`,
       product: (id: ProductId) => `${base}/products/${id}`,
       stock_availables: `${base}/stock_availables`,
@@ -467,9 +468,7 @@ export class PrestaShopClient {
 
   async testConnection(): Promise<boolean> {
     try {
-      const response = await this.client.get(this.endpoints.products, {
-        params: { limit: 1 }
-      });
+      const response = await this.client.get(this.endpoints.root);
       return response.status === 200;
     } catch (error) {
       logger.error('PrestaShop connection test failed', { error });

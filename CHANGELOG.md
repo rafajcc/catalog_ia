@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- The PrestaShop connection test now calls the Webservice root (`GET /api`) instead of `GET /api/products?limit=1`, which is the canonical check for connectivity and credentials: it returns the resource list with a valid key and fails with a 401 when the key is invalid, without depending on access to the `products` resource.
 - Prices and stock quantities are no longer silently adjusted: `price` and `wholesale_price` cells are rejected when they have more than 2 decimal places (nothing is rounded) and `quantity` cells are rejected when they are not non-negative integers (nothing is truncated). The CSV parser flags these rows, `POST /api/process/csv` reports them via `invalid_rows`/`row_errors`, and the upload tab shows a warning listing the first row errors.
 - Text field limits matching PrestaShop are now enforced by the product validation rules: `name` max 128, `reference` max 64, `brand`/`manufacturer` max 64 (from `ps_product_lang.name`, `ps_product.reference` and `ps_manufacturer.name`); `price`/`wholesale_price` max 2 decimals, `quantity` integer, all non-negative. The review panel field metadata (`getFieldValidation`) also exposes the same limits plus `meta_title` 128, `meta_description` 512 and `link_rewrite` 128.
 - The CSV format guide in the upload tab now documents the PrestaShop text limits and the strict price/quantity rules (max 2 decimals, integers only, no rounding or truncation).

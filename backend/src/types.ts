@@ -279,6 +279,7 @@ export interface PrestaShopSyncResult {
 }
 
 export interface PrestaShopAPIEndpoints {
+  root: string;
   products: string;
   product: (id: ProductId) => string;
   stock_availables: string;

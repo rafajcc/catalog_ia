@@ -520,7 +520,7 @@ describe('PrestaShopClient', () => {
 
       const result = await client.testConnection();
 
-      expect(fake.get).toHaveBeenCalledWith('/api/products', { params: { limit: 1 } });
+      expect(fake.get).toHaveBeenCalledWith('/api');
       expect(result).toBe(true);
     });
 
