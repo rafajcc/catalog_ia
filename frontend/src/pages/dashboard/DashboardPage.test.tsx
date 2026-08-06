@@ -101,7 +101,8 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('button', { name: 'Review' })).toBeDisabled();
 
     await user.click(screen.getByRole('button', { name: 'Validation' }));
-    expect(screen.getByText(/Loaded files:.*p\.csv/)).toBeInTheDocument();
+    expect(screen.getByText('Loaded files (1)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show files' })).toBeInTheDocument();
 
     await user.click(await screen.findByRole('button', { name: 'Validate products' }));
     expect(await screen.findByText('1 total')).toBeInTheDocument();
@@ -227,6 +228,45 @@ describe('DashboardPage', () => {
 
     expect(mockApi.deleteCsvUpload).toHaveBeenCalledWith('file-1');
     await waitFor(() => expect(screen.queryByText('products.csv')).not.toBeInTheDocument());
+  });
+
+  it('falls back to the first remaining CSV when the active file is deleted', async () => {
+    mockApi.getUploads
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          csvs: [
+            { id: 'file-1', name: 'products.csv' },
+            { id: 'file-2', name: 'extras.csv' }
+          ],
+          images: []
+        }
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          csvs: [
+            { id: 'file-1', name: 'products.csv' },
+            { id: 'file-2', name: 'extras.csv' }
+          ],
+          images: []
+        }
+      });
+    mockApi.uploadCSV.mockResolvedValue({ success: true, file_id: 'file-3' });
+    mockApi.parseCSV.mockResolvedValue({ success: true, data: { data_id: 'file-3' } });
+    renderWithI18n(<DashboardPage />, 'en');
+
+    const user = userEvent.setup();
+    await user.upload(screen.getByLabelText(/Product catalog \(CSV\)/), new File(['a,b'], 'new.csv'));
+    await user.click(screen.getByRole('button', { name: /Upload CSV/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Validation' })).toBeEnabled());
+
+    await user.click(screen.getByRole('button', { name: 'Delete new.csv' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Validation' })).toBeEnabled());
+
+    await user.click(screen.getByRole('button', { name: 'Validation' }));
+    expect(screen.getByText('Loaded files (2)')).toBeInTheDocument();
   });
 
   it('deletes a single uploaded image and refreshes the list', async () => {

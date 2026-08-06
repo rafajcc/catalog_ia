@@ -109,8 +109,14 @@ describe('API routes', () => {
 
   it('uploads and parses a CSV file into a data id', async () => {
     const app = makeApp();
-    const dataId = await uploadAndParse(app);
-    expect(dataId).toMatch(/^data_/);
+    const upload = await request(app)
+      .post('/api/upload/csv')
+      .attach('file', csvBuffer(), { filename: 'products.csv', contentType: 'text/csv' });
+
+    const parsed = await request(app).post('/api/process/csv').send({ fileId: upload.body.file_id });
+    expect(parsed.status).toBe(200);
+    // The parsed dataset is keyed by its file id, which doubles as the data id.
+    expect(parsed.body.data.data_id).toBe(upload.body.file_id);
   });
 
   it('rejects CSV processing for an unknown file id', async () => {
@@ -311,6 +317,60 @@ describe('API routes', () => {
   it('returns 404 when validating unknown data', async () => {
     const res = await request(makeApp()).post('/api/validate/products/unknown');
     expect(res.status).toBe(404);
+  });
+
+  it('merges products from multiple uploaded CSVs into a single dataset', async () => {
+    const app = makeApp();
+
+    const uploadA = await request(app)
+      .post('/api/upload/csv')
+      .attach('file', csvBuffer(), { filename: 'a.csv', contentType: 'text/csv' });
+    const uploadB = await request(app)
+      .post('/api/upload/csv')
+      .attach('file', csvBuffer(), { filename: 'b.csv', contentType: 'text/csv' });
+    expect(uploadA.status).toBe(200);
+    expect(uploadB.status).toBe(200);
+
+    const parsedA = await request(app).post('/api/process/csv').send({ fileId: uploadA.body.file_id });
+    const parsedB = await request(app).post('/api/process/csv').send({ fileId: uploadB.body.file_id });
+    expect(parsedA.status).toBe(200);
+    expect(parsedB.status).toBe(200);
+
+    // The most recently parsed file's id is the handle for the merged set.
+    const dataId = parsedB.body.data.data_id;
+
+    const validated = await request(app).post(`/api/validate/products/${dataId}`);
+    expect(validated.status).toBe(200);
+    expect(validated.body.data.products.length).toBe(4);
+
+    const results = await request(app).get(`/api/validate/results/${dataId}`);
+    expect(results.status).toBe(200);
+    expect(results.body.data.products.length).toBe(4);
+  });
+
+  it('removes a deleted file\'s products from the merged dataset', async () => {
+    const app = makeApp();
+
+    const uploadA = await request(app)
+      .post('/api/upload/csv')
+      .attach('file', csvBuffer(), { filename: 'a.csv', contentType: 'text/csv' });
+    const uploadB = await request(app)
+      .post('/api/upload/csv')
+      .attach('file', csvBuffer(), { filename: 'b.csv', contentType: 'text/csv' });
+
+    await request(app).post('/api/process/csv').send({ fileId: uploadA.body.file_id });
+    const parsedB = await request(app).post('/api/process/csv').send({ fileId: uploadB.body.file_id });
+    const dataId = parsedB.body.data.data_id;
+
+    const before = await request(app).post(`/api/validate/products/${dataId}`);
+    expect(before.body.data.products.length).toBe(4);
+
+    const removed = await request(app).delete(`/api/upload/csv/${uploadA.body.file_id}`);
+    expect(removed.status).toBe(200);
+
+    const after = await request(app).post(`/api/validate/products/${dataId}`);
+    expect(after.status).toBe(200);
+    expect(after.body.data.products.length).toBe(2);
   });
 
   it('uploads images and matches them against products', async () => {

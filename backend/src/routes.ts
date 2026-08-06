@@ -116,6 +116,13 @@ function requireUploadedFile(store: DataStore, fileId: string): UploadedFile {
 }
 
 function requireDataset(store: DataStore, dataId: string): DataSet {
+  // All downstream steps (validation, images, AI, sync, review) operate on the
+  // merged dataset built from every parsed CSV, in upload order. The dataId of
+  // the most recently processed file is used as the handle for the merged set.
+  const active = store.getActiveDataset();
+  if (active && (active.dataId === dataId || store.getDataset(dataId))) {
+    return active;
+  }
   const dataset = store.getDataset(dataId);
   if (!dataset) {
     throw new AppError(`Data ${dataId} not found`, 404);
@@ -383,6 +390,7 @@ export function createApiRouter(deps: RouteDependencies): Router {
       if (!uploaded) throw new AppError('Uploaded file not found', 404);
 
       store.uploads.delete(req.params.fileId);
+      store.datasets.delete(req.params.fileId);
       await fs.remove(uploaded.path);
       res.json({ success: true, message: 'CSV file removed' });
     })
@@ -409,6 +417,10 @@ export function createApiRouter(deps: RouteDependencies): Router {
         await fs.remove(upload.path);
       }
       store.uploads.clear();
+      store.datasets.clear();
+      store.validationResults.clear();
+      store.matchingResults.clear();
+      store.aiSuggestions.clear();
       res.json({ success: true, message: 'All CSV files removed' });
     })
   );
@@ -458,7 +470,7 @@ export function createApiRouter(deps: RouteDependencies): Router {
         );
       }
 
-      const dataId = store.newId('data');
+      const dataId = fileId;
       store.datasets.set(dataId, {
         dataId,
         fileId,
@@ -478,7 +490,7 @@ export function createApiRouter(deps: RouteDependencies): Router {
 
   router.get('/process/csv/:fileId', (req, res) => {
     const uploaded = requireUploadedFile(store, req.params.fileId);
-    const dataset = [...store.datasets.values()].find((d) => d.fileId === req.params.fileId);
+    const dataset = store.getDataset(req.params.fileId);
     res.json({
       success: true,
       data: { products: dataset?.products ?? [], file_name: uploaded.originalName }

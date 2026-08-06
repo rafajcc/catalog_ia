@@ -22,6 +22,7 @@ export default function ValidationPanel({ dataId, csvFiles = [], autoLoad = fals
   const [products, setProducts] = useState<ProductData[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
+  const [filesOpen, setFilesOpen] = useState(false);
   const autoLoadRef = useRef(autoLoad);
   autoLoadRef.current = autoLoad;
 
@@ -74,11 +75,6 @@ export default function ValidationPanel({ dataId, csvFiles = [], autoLoad = fals
   return (
     <section className="card">
       <h2>{t('validation.title')}</h2>
-      {csvFiles.length > 0 && (
-        <p>
-          {t('validation.filesLabel')} {csvFiles.map((file) => file.name).join(', ')}
-        </p>
-      )}
       <button
         type="button"
         className="btn primary"
@@ -115,6 +111,34 @@ export default function ValidationPanel({ dataId, csvFiles = [], autoLoad = fals
       )}
 
       {message && <div className={`message ${message.kind}`}>{message.text}</div>}
+
+      {csvFiles.length > 0 && (
+        <div className="uploaded-list">
+          <div className="uploaded-group">
+            <div className="uploaded-group-header">
+              <strong>{t('validation.filesTitle', { count: csvFiles.length })}</strong>
+              <button
+                type="button"
+                className="btn btn-small"
+                aria-expanded={filesOpen}
+                aria-controls="validation-file-list"
+                onClick={() => setFilesOpen((value) => !value)}
+              >
+                {filesOpen ? t('validation.filesHide') : t('validation.filesShow')}
+              </button>
+            </div>
+            {filesOpen && (
+              <ul id="validation-file-list">
+                {csvFiles.map((file) => (
+                  <li key={file.id}>
+                    <span>{file.name}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

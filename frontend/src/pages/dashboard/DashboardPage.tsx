@@ -55,6 +55,11 @@ export default function DashboardPage() {
     if (csvs.length === 0) {
       setDataId(undefined);
       setActiveTab('upload');
+    } else if (!csvs.some((csv: UploadItem) => csv.id === dataId)) {
+      // The current dataset handle no longer exists (e.g. its file was deleted):
+      // fall back to the first remaining CSV, which acts as the handle for the
+      // merged dataset.
+      setDataId(csvs[0].id);
     }
   }
 

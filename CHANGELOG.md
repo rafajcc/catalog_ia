@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The internal "data id" is no longer shown in the UI: the validation panel now displays the names of the CSV files being validated instead of the id.
 - The AI, sync and review tabs no longer unlock as soon as a CSV is processed; they stay disabled until the uploaded data has been validated (after "Validate products" runs successfully) and re-lock when a new CSV is processed.
 - The "Load results" button was removed from the validation panel; the panel now loads the last stored validation automatically when it is opened, unless the uploaded files changed since that validation (uploading or deleting a CSV invalidates the stored results so stale data is never shown). Errors while loading the stored results are shown in the panel instead of being silent.
+- All uploaded CSVs are merged into a single working dataset: validation, image matching, AI suggestions, sync and review now run against the combined products of every processed CSV (in upload order) instead of only the last one. Re-uploading or deleting a CSV rebuilds the merged dataset and invalidates any stored results, and the dashboard falls back to the first remaining CSV as the dataset handle when the current one is deleted.
+- The parsed CSV datasets are now keyed by their file id (the `data_id` returned by `POST /api/process/csv` is the file id), so merged results are consistent with the upload list.
+- The validation panel no longer shows the loaded files as a comma-separated line at the top; it now shows a collapsible file list at the bottom of the panel (same look as the upload tab, without delete buttons), so long file lists stay hidden until expanded.
 
 ### Added
 - `LICENSE` (MIT) and `CHANGELOG.md` files referenced from the README.

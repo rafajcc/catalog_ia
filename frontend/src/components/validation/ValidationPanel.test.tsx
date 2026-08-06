@@ -82,7 +82,7 @@ describe('ValidationPanel', () => {
     expect(await screen.findByText('validation crashed')).toBeInTheDocument();
   });
 
-  it('lists the CSV files being validated', () => {
+  it('lists the CSV files being validated in a collapsible list', async () => {
     renderWithI18n(
       <ValidationPanel
         dataId="d1"
@@ -94,13 +94,26 @@ describe('ValidationPanel', () => {
       'en'
     );
 
-    expect(screen.getByText('Loaded files: products.csv, catalog.csv')).toBeInTheDocument();
+    expect(screen.getByText('Loaded files (2)')).toBeInTheDocument();
+
+    const toggle = screen.getByRole('button', { name: 'Show files' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByText('products.csv')).not.toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByText('products.csv')).toBeInTheDocument();
+    expect(screen.getByText('catalog.csv')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Hide files' }));
+    expect(screen.queryByText('products.csv')).not.toBeInTheDocument();
   });
 
   it('does not render the file list when there are no files', () => {
     renderWithI18n(<ValidationPanel dataId="d1" />, 'en');
 
-    expect(screen.queryByText(/Loaded files:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Loaded files/)).not.toBeInTheDocument();
   });
 
   it('invokes onValidated after validation succeeds', async () => {

@@ -60,6 +60,7 @@ function defaultConfig(): CatalogConfig {
 
 export class DataStore {
   uploads = new Map<string, UploadedFile>();
+  // One parsed dataset per uploaded CSV, keyed by fileId.
   datasets = new Map<string, DataSet>();
   validationResults = new Map<string, { products: ProductData[] }>();
   images: ImageFile[] = [];
@@ -73,7 +74,27 @@ export class DataStore {
     return `${prefix}_${nanoid(8)}`;
   }
 
-  getDataset(dataId: string): DataSet | undefined {
-    return this.datasets.get(dataId);
+  getDataset(fileId: string): DataSet | undefined {
+    return this.datasets.get(fileId);
+  }
+
+  // Merges every parsed CSV into a single working dataset, in upload order.
+  getActiveDataset(): DataSet | undefined {
+    const datasets: DataSet[] = [];
+    for (const fileId of this.uploads.keys()) {
+      const dataset = this.datasets.get(fileId);
+      if (dataset) datasets.push(dataset);
+    }
+    if (datasets.length === 0) return undefined;
+
+    const last = datasets[datasets.length - 1];
+    return {
+      dataId: last.dataId,
+      fileId: last.fileId,
+      fileName: datasets.map((d) => d.fileName).join(', '),
+      products: datasets.flatMap((d) => d.products),
+      csvHeaders: last.csvHeaders,
+      totalRows: datasets.reduce((sum, d) => sum + d.totalRows, 0)
+    };
   }
 }
