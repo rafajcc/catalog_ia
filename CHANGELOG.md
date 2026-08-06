@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSV template download: a "Download template" button in the upload panel fetches `GET /api/template/csv` and saves `catalog_template.csv` (16 ordered columns: `ean,reference,name,sku,price,wholesale_price,quantity,stock,brand,manufacturer,category,tax,weight,description_short,description,image_hints`).
 - CSV upload format validation: uploads are rejected when the column count differs from the 16 expected columns or the required headers are missing (`assertCsvFormat` in `backend/src/routes.ts`, with a "Download the template" hint); cell content is deliberately not validated here since data validation happens in the next tab.
 - CSV upload success message now shows the uploaded file name (`upload.successUploaded`), and new i18n keys cover template download and deleted CSV/image/all messages in Spanish and English.
+- CSV format guide in the upload panel: a "?" button next to the "Product catalog (CSV)" label expands an inline, localized guide describing the 16 expected columns (with required flag, value formats and examples) plus a ready-to-fill example row and a hint pointing to the template download.
 
 ### Fixed
 - The Images tab was enabled as soon as a CSV was processed even without any uploaded image; it now stays disabled until at least one product image is uploaded (and re-locks if all images are deleted).

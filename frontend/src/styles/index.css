@@ -67,11 +67,64 @@ body {
   margin-bottom: 0.75rem;
 }
 
+.field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.field-header label {
+  margin-bottom: 0;
+}
+
 .field label {
   display: block;
   font-size: 0.8125rem;
   margin-bottom: 0.25rem;
   color: #374151;
+}
+
+.help-button {
+  font-weight: 700;
+  color: #2563eb;
+  border-radius: 9999px;
+  width: 1.4rem;
+  height: 1.4rem;
+  padding: 0;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.guide-box {
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  color: #1e3a8a;
+}
+
+.guide-box p {
+  margin: 0 0 0.5rem;
+}
+
+.guide-box p:last-child {
+  margin-bottom: 0;
+}
+
+.guide-box code {
+  background: #dbeafe;
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.guide-table td:first-child code {
+  white-space: nowrap;
 }
 
 .field input,

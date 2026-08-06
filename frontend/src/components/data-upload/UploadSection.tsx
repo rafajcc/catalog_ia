@@ -9,6 +9,28 @@ interface Message {
   text: string;
 }
 
+const CSV_GUIDE_COLUMNS: Array<{ key: string; required: boolean }> = [
+  { key: 'ean', required: false },
+  { key: 'reference', required: false },
+  { key: 'name', required: true },
+  { key: 'sku', required: false },
+  { key: 'price', required: false },
+  { key: 'wholesale_price', required: false },
+  { key: 'quantity', required: false },
+  { key: 'stock', required: false },
+  { key: 'brand', required: false },
+  { key: 'manufacturer', required: false },
+  { key: 'category', required: false },
+  { key: 'tax', required: false },
+  { key: 'weight', required: false },
+  { key: 'description_short', required: false },
+  { key: 'description', required: false },
+  { key: 'image_hints', required: false }
+];
+
+const CSV_GUIDE_EXAMPLE =
+  '8412345678901,REF-001,Laptop Pro,LP15-001,999.99,899.99,50,50,Dell,Dell Inc.,Electronics,21,2.5,Desc corta,"Descripción larga con comas",EAN-8412345678901';
+
 interface UploadSectionProps {
   onDataReady?: (dataId: string) => void;
   uploadedCsvs?: UploadItem[];
@@ -33,6 +55,7 @@ export default function UploadSection({
   const [folderPath, setFolderPath] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
+  const [showCsvGuide, setShowCsvGuide] = useState(false);
 
   async function handleCsvUpload() {
     if (!csvFile) {
@@ -205,12 +228,23 @@ export default function UploadSection({
       <h2>{t('upload.title')}</h2>
 
       <div className="field">
-        <label htmlFor="csv-input">
-          {t('upload.csvLabel')}
-          {uploadedCsvs.length > 0 && (
-            <span className="upload-counter">{t('upload.uploadedCsvs', { count: uploadedCsvs.length })}</span>
-          )}
-        </label>
+        <div className="field-header">
+          <label htmlFor="csv-input">
+            {t('upload.csvLabel')}
+            {uploadedCsvs.length > 0 && (
+              <span className="upload-counter">{t('upload.uploadedCsvs', { count: uploadedCsvs.length })}</span>
+            )}
+          </label>
+          <button
+            type="button"
+            className="btn btn-small help-button"
+            aria-label={t('upload.guide.toggle')}
+            aria-expanded={showCsvGuide}
+            onClick={() => setShowCsvGuide((value) => !value)}
+          >
+            ?
+          </button>
+        </div>
         <input
           id="csv-input"
           type="file"
@@ -224,6 +258,36 @@ export default function UploadSection({
         <button type="button" className="btn primary" disabled={busy} onClick={handleDownloadTemplate}>
           {t('upload.templateButton')}
         </button>
+        {showCsvGuide && (
+          <div className="guide-box">
+            <p>{t('upload.guide.intro')}</p>
+            <table className="data guide-table">
+              <thead>
+                <tr>
+                  <th>{t('upload.guide.col')}</th>
+                  <th>{t('upload.guide.description')}</th>
+                  <th>{t('upload.guide.required')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {CSV_GUIDE_COLUMNS.map((column) => (
+                  <tr key={column.key}>
+                    <td>
+                      <code>{column.key}</code>
+                    </td>
+                    <td>{t(`upload.guide.column.${column.key}`)}</td>
+                    <td>{column.required ? t('upload.guide.requiredYes') : ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p>
+              <strong>{t('upload.guide.example')}</strong>{' '}
+              <code>{CSV_GUIDE_EXAMPLE}</code>
+            </p>
+            <p>{t('upload.guide.downloadHint')}</p>
+          </div>
+        )}
       </div>
 
       <div className="field">

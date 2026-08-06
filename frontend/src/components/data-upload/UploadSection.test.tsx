@@ -217,6 +217,25 @@ describe('UploadSection', () => {
     expect(await screen.findByText('Template downloaded')).toBeInTheDocument();
   });
 
+  it('toggles the CSV format guide with the help button', async () => {
+    renderWithI18n(<UploadSection />, 'es');
+
+    const user = userEvent.setup();
+    expect(screen.queryByText(/El CSV debe incluir esta cabecera exacta/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Ver guía de formato del CSV' }));
+
+    expect(screen.getByText(/El CSV debe incluir esta cabecera exacta/)).toBeInTheDocument();
+    expect(screen.getByText('ean')).toBeInTheDocument();
+    expect(screen.getByText('name')).toBeInTheDocument();
+    expect(screen.getByText('Sí')).toBeInTheDocument();
+    expect(screen.getByText(/8412345678901,REF-001/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Ver guía de formato del CSV' }));
+
+    expect(screen.queryByText(/El CSV debe incluir esta cabecera exacta/)).not.toBeInTheDocument();
+  });
+
   it('shows an error when the template download fails', async () => {
     mockApi.getCsvTemplate.mockRejectedValue(new Error('template unavailable'));
     renderWithI18n(<UploadSection />, 'en');
