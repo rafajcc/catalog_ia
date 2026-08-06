@@ -65,7 +65,10 @@ export default function DashboardPage() {
   const tabs: TabItem[] = TAB_KEYS.map((tab) => ({
     id: tab.id,
     label: t(tab.key),
-    disabled: tab.id !== 'upload' && !dataId
+    disabled:
+      tab.id === 'images'
+        ? !(dataId && uploadedImages.length > 0)
+        : tab.id !== 'upload' && !dataId
   }));
 
   function handleTabChange(id: string) {
@@ -110,7 +113,11 @@ export default function DashboardPage() {
             {activeTab === 'validation' &&
               (dataId ? <ValidationPanel dataId={dataId} /> : <p className="message error">{t('dashboard.emptyDataNotice')}</p>)}
             {activeTab === 'images' &&
-              (dataId ? <ImageMatchingPanel dataId={dataId} /> : <p className="message error">{t('dashboard.emptyDataNotice')}</p>)}
+              (dataId && uploadedImages.length > 0 ? (
+                <ImageMatchingPanel dataId={dataId} />
+              ) : (
+                <p className="message error">{t('dashboard.emptyDataNotice')}</p>
+              ))}
             {activeTab === 'ai' &&
               (dataId ? <SuggestionsPanel dataId={dataId} /> : <p className="message error">{t('dashboard.emptyDataNotice')}</p>)}
             {activeTab === 'sync' &&

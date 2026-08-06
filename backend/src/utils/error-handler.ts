@@ -6,12 +6,14 @@ import { logger } from './logger';
 export class AppError extends Error {
   statusCode: number;
   details?: any;
+  code?: string;
 
-  constructor(message: string, statusCode: number = 500, details?: any) {
+  constructor(message: string, statusCode: number = 500, details?: any, code?: string) {
     super(message);
     this.name = 'AppError';
     this.statusCode = statusCode;
     this.details = details;
+    this.code = code;
     Object.setPrototypeOf(this, AppError.prototype);
   }
 }
@@ -47,6 +49,7 @@ export class ErrorHandler {
         message,
         statusCode,
         details: err && err.details,
+        ...(err && err.code ? { code: err.code } : {}),
         ...(ErrorHandler.isDev && err ? { stack: err.stack } : {})
       }
     });

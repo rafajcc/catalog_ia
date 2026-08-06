@@ -102,6 +102,23 @@ describe('ErrorHandler', () => {
       });
     });
 
+    it('includes the error code when one is set', () => {
+      const res = mockRes();
+      const req: any = {};
+
+      ErrorHandler.handle(new AppError('bad csv', 400, { columns: 2 }, 'CSV_COLUMN_COUNT_MISMATCH'), req, res, jest.fn());
+
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: {
+          message: 'bad csv',
+          statusCode: 400,
+          details: { columns: 2 },
+          code: 'CSV_COLUMN_COUNT_MISMATCH'
+        }
+      });
+    });
+
     it('includes the stack in the response in development mode', () => {
       ErrorHandler.setup(true);
       const res = mockRes();

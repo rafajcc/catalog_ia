@@ -40,6 +40,9 @@ export const translations: Record<Language, Record<string, string>> = {
     'upload.errorNoFolder': 'Introduce una ruta de carpeta de imágenes',
     'upload.errorDuplicateCsv': 'El archivo "{name}" ya se ha subido',
     'upload.errorDuplicateImage': 'La imagen "{name}" ya se ha subido',
+    'upload.errorCsvColumnCount':
+      'El archivo "{name}" tiene {columns} columna(s) pero se esperan {expected}. Descarga la plantilla para ver el formato esperado.',
+    'upload.errorCsvMissingColumns': 'El archivo "{name}" no sigue el formato esperado. Faltan las columnas: {missing}.',
     'upload.successUploaded': 'Archivo CSV subido: {name}',
     'upload.successImages': '{count} imagen(es) subida(s)',
     'upload.successFolder': 'Carpeta de imágenes seleccionada',
@@ -177,6 +180,9 @@ export const translations: Record<Language, Record<string, string>> = {
     'upload.errorNoFolder': 'Enter an image folder path',
     'upload.errorDuplicateCsv': 'The file "{name}" has already been uploaded',
     'upload.errorDuplicateImage': 'The image "{name}" has already been uploaded',
+    'upload.errorCsvColumnCount':
+      'The file "{name}" has {columns} column(s) but {expected} are expected. Download the template to see the expected format.',
+    'upload.errorCsvMissingColumns': 'The file "{name}" does not follow the expected format. Missing columns: {missing}.',
     'upload.successProcessed': 'File processed. Data id: {id}',
     'upload.successUploaded': 'CSV file uploaded: {name}',
     'upload.successImages': '{count} image(s) uploaded',

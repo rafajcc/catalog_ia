@@ -246,6 +246,8 @@ describe('API routes', () => {
     expect(upload.status).toBe(400);
     expect(upload.body.success).toBe(false);
     expect(upload.body.error.message).toMatch(/2 column\(s\) but 16 are expected/i);
+    expect(upload.body.error.code).toBe('CSV_COLUMN_COUNT_MISMATCH');
+    expect(upload.body.error.details).toEqual({ name: 'rubbish.csv', columns: 2, expected: 16 });
   });
 
   it('rejects CSV uploads with the right column count but wrong headers', async () => {
@@ -261,6 +263,8 @@ describe('API routes', () => {
     expect(res.body.success).toBe(false);
     expect(res.body.error.message).toMatch(/does not follow the expected format/i);
     expect(res.body.error.message).toContain('ean');
+    expect(res.body.error.code).toBe('CSV_MISSING_COLUMNS');
+    expect(res.body.error.details.missing).toContain('ean');
   });
 
   it('serves the CSV template with headers and an empty data row', async () => {

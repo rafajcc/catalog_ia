@@ -84,14 +84,18 @@ function assertCsvFormat(file: fileUpload.UploadedFile): void {
   if (headers.length !== CSV_TEMPLATE_HEADERS.length) {
     throw new AppError(
       `The file "${file.name}" has ${headers.length} column(s) but ${CSV_TEMPLATE_HEADERS.length} are expected. Download the template to see the expected format.`,
-      400
+      400,
+      { name: file.name, columns: headers.length, expected: CSV_TEMPLATE_HEADERS.length },
+      'CSV_COLUMN_COUNT_MISMATCH'
     );
   }
   const missing = CSV_TEMPLATE_HEADERS.filter((header) => !headers.includes(header));
   if (missing.length > 0) {
     throw new AppError(
       `The file "${file.name}" does not follow the expected format. Missing columns: ${missing.join(', ')}.`,
-      400
+      400,
+      { name: file.name, missing },
+      'CSV_MISSING_COLUMNS'
     );
   }
 }

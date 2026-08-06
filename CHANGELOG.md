@@ -39,9 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSV upload success message now shows the uploaded file name (`upload.successUploaded`), and new i18n keys cover template download and deleted CSV/image/all messages in Spanish and English.
 
 ### Fixed
+- The Images tab was enabled as soon as a CSV was processed even without any uploaded image; it now stays disabled until at least one product image is uploaded (and re-locks if all images are deleted).
+- Backend error messages (in English) appeared verbatim in the UI regardless of the selected language: `AppError` now carries a machine-readable `code` that is included in API error responses, and the CSV column-count and missing-columns format errors are translated to the active language (`upload.errorCsvColumnCount`, `upload.errorCsvMissingColumns`).
 - A lint error from an empty `CSVParserConfig` interface left in the CSV parser; it is removed and `CSV_TEMPLATE_HEADERS` is exported instead.
-
-### Fixed
 - The frontend `api-service.ts` had an invalid Python-style docstring at the top and imported a non-existent `types` module; both are resolved, methods are typed against the shared API contract, and the service is exposed through a lazy singleton.
 - Uploading a non-CSV file was accepted silently: `POST /api/upload/csv` now rejects files without a `.csv` extension, empty files, and binary content (NUL-byte sniff), and the frontend upload panel refuses non-`.csv` selections before any request is made.
 - A garbage file that passed upload produced a misleading "0 productos": `POST /api/process/csv` now fails with a clear 400 when the file has no recognized product columns, contains no data rows, or yields zero extractable products.

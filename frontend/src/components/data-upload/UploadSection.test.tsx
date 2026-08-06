@@ -76,6 +76,61 @@ describe('UploadSection', () => {
     expect(onDataReady).not.toHaveBeenCalled();
   });
 
+  it('shows the CSV format error in Spanish', async () => {
+    mockApi.uploadCSV.mockRejectedValue({
+      response: {
+        data: {
+          success: false,
+          error: {
+            message:
+              'The file "preview_20260123_182113.csv" has 7 column(s) but 16 are expected. Download the template to see the expected format.',
+            statusCode: 400,
+            code: 'CSV_COLUMN_COUNT_MISMATCH',
+            details: { name: 'preview_20260123_182113.csv', columns: 7, expected: 16 }
+          }
+        }
+      }
+    });
+
+    renderWithI18n(<UploadSection />, 'es');
+
+    const user = userEvent.setup();
+    await user.upload(screen.getByLabelText(/Catálogo de productos \(CSV\)/), makeFile('preview_20260123_182113.csv'));
+    await user.click(screen.getByRole('button', { name: /Subir CSV/ }));
+
+    expect(
+      await screen.findByText(
+        'El archivo "preview_20260123_182113.csv" tiene 7 columna(s) pero se esperan 16. Descarga la plantilla para ver el formato esperado.'
+      )
+    ).toBeInTheDocument();
+  });
+
+  it('shows the missing-columns CSV error in Spanish', async () => {
+    mockApi.uploadCSV.mockRejectedValue({
+      response: {
+        data: {
+          success: false,
+          error: {
+            message: 'The file "mal.csv" does not follow the expected format. Missing columns: ean, name.',
+            statusCode: 400,
+            code: 'CSV_MISSING_COLUMNS',
+            details: { name: 'mal.csv', missing: ['ean', 'name'] }
+          }
+        }
+      }
+    });
+
+    renderWithI18n(<UploadSection />, 'es');
+
+    const user = userEvent.setup();
+    await user.upload(screen.getByLabelText(/Catálogo de productos \(CSV\)/), makeFile('mal.csv'));
+    await user.click(screen.getByRole('button', { name: /Subir CSV/ }));
+
+    expect(
+      await screen.findByText('El archivo "mal.csv" no sigue el formato esperado. Faltan las columnas: ean, name.')
+    ).toBeInTheDocument();
+  });
+
   it('warns when no CSV is selected', async () => {
     renderWithI18n(<UploadSection />, 'en');
 

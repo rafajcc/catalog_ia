@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { getApiService } from '../../services/api-service';
-import { downloadBlob, getErrorMessage } from '../../utils/download';
+import { downloadBlob, getApiError, getErrorMessage } from '../../utils/download';
 import { useI18n } from '../../i18n';
 import { UploadItem } from '../../types';
 
@@ -59,10 +59,29 @@ export default function UploadSection({
         onDataReady?.(id);
       }
     } catch (error) {
-      setMessage({ kind: 'error', text: getErrorMessage(error) });
+      setMessage({ kind: 'error', text: formatUploadError(error) });
     } finally {
       setBusy(false);
     }
+  }
+
+  function formatUploadError(error: unknown): string {
+    const apiError = getApiError(error);
+    const details = apiError?.details ?? {};
+    if (apiError?.code === 'CSV_COLUMN_COUNT_MISMATCH') {
+      return t('upload.errorCsvColumnCount', {
+        name: String(details.name ?? ''),
+        columns: String(details.columns ?? ''),
+        expected: String(details.expected ?? '')
+      });
+    }
+    if (apiError?.code === 'CSV_MISSING_COLUMNS') {
+      return t('upload.errorCsvMissingColumns', {
+        name: String(details.name ?? ''),
+        missing: Array.isArray(details.missing) ? details.missing.join(', ') : String(details.missing ?? '')
+      });
+    }
+    return getErrorMessage(error);
   }
 
   async function handleImageUpload() {

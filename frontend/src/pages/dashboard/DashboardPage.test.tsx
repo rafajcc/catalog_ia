@@ -209,6 +209,25 @@ describe('DashboardPage', () => {
     await waitFor(() => expect(screen.queryByText('products.csv')).not.toBeInTheDocument());
   });
 
+  it('enables the images tab only after an image is uploaded', async () => {
+    mockApi.uploadCSV.mockResolvedValue({ success: true, file_id: 'file-1' });
+    mockApi.parseCSV.mockResolvedValue({ success: true, data: { data_id: 'data-1' } });
+    mockApi.uploadImages.mockResolvedValue({ success: true });
+    renderWithI18n(<DashboardPage />, 'en');
+
+    const user = userEvent.setup();
+    await user.upload(screen.getByLabelText(/Product catalog \(CSV\)/), new File(['a,b'], 'p.csv'));
+    await user.click(screen.getByRole('button', { name: /Upload CSV/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Validation' })).toBeEnabled());
+
+    expect(screen.getByRole('button', { name: 'Images' })).toBeDisabled();
+
+    await user.upload(screen.getByLabelText(/Product images/), [new File(['x'], 'img.jpg', { type: 'image/jpeg' })]);
+    await user.click(screen.getByRole('button', { name: 'Upload images' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Images' })).toBeEnabled());
+  });
+
   it('re-locks the data tabs after all CSV files are deleted', async () => {
     mockApi.uploadCSV.mockResolvedValue({ success: true, file_id: 'file-1' });
     mockApi.parseCSV.mockResolvedValue({ success: true, data: { data_id: 'data-1' } });
