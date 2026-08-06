@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The CSV format guide intro now states that any field containing a comma must be wrapped in double quotes (applies to all columns), and the column descriptions mention that empty price/wholesale price/stock keep the existing store values.
 - The internal "data id" is no longer shown in the UI: the validation panel now displays the names of the CSV files being validated instead of the id.
 - The AI, sync and review tabs no longer unlock as soon as a CSV is processed; they stay disabled until the uploaded data has been validated (after "Validate products" runs successfully) and re-lock when a new CSV is processed.
+- The "Load results" button was removed from the validation panel; the panel now loads the last stored validation automatically when it is opened, unless the uploaded files changed since that validation (uploading or deleting a CSV invalidates the stored results so stale data is never shown). Errors while loading the stored results are shown in the panel instead of being silent.
 
 ### Added
 - `LICENSE` (MIT) and `CHANGELOG.md` files referenced from the README.

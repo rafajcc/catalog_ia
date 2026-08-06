@@ -111,6 +111,66 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('button', { name: 'Review' })).toBeEnabled();
   });
 
+  it('auto-loads the stored validation when reopening the tab without upload changes', async () => {
+    mockApi.uploadCSV.mockResolvedValue({ success: true, file_id: 'file-1' });
+    mockApi.parseCSV.mockResolvedValue({ success: true, data: { data_id: 'data-1' } });
+    mockApi.validateProducts.mockResolvedValue({
+      success: true,
+      data: { products: [{ id: 'p1', name: 'Alpha', validation_errors: [] }] }
+    });
+    mockApi.getValidationResults.mockResolvedValue({
+      success: true,
+      data: { products: [{ id: 'p1', name: 'Alpha', validation_errors: [] }] }
+    });
+    renderWithI18n(<DashboardPage />, 'en');
+
+    const user = userEvent.setup();
+    await user.upload(screen.getByLabelText(/Product catalog \(CSV\)/), new File(['a,b'], 'a.csv'));
+    await user.click(screen.getByRole('button', { name: /Upload CSV/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Validation' })).toBeEnabled());
+
+    await user.click(screen.getByRole('button', { name: 'Validation' }));
+    await user.click(await screen.findByRole('button', { name: 'Validate products' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'AI' })).toBeEnabled());
+
+    await user.click(screen.getByRole('button', { name: 'Upload' }));
+    await user.click(screen.getByRole('button', { name: 'Validation' }));
+
+    await waitFor(() => expect(mockApi.getValidationResults).toHaveBeenCalledWith('data-1'));
+    expect(await screen.findByText('1 total')).toBeInTheDocument();
+  });
+
+  it('does not auto-load old results after the uploaded files change', async () => {
+    mockApi.uploadCSV.mockResolvedValue({ success: true, file_id: 'file-1' });
+    mockApi.parseCSV.mockResolvedValue({ success: true, data: { data_id: 'data-1' } });
+    mockApi.validateProducts.mockResolvedValue({
+      success: true,
+      data: { products: [{ id: 'p1', name: 'Alpha', validation_errors: [] }] }
+    });
+    renderWithI18n(<DashboardPage />, 'en');
+
+    const user = userEvent.setup();
+    await user.upload(screen.getByLabelText(/Product catalog \(CSV\)/), new File(['a,b'], 'a.csv'));
+    await user.click(screen.getByRole('button', { name: /Upload CSV/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Validation' })).toBeEnabled());
+
+    await user.click(screen.getByRole('button', { name: 'Validation' }));
+    await user.click(await screen.findByRole('button', { name: 'Validate products' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'AI' })).toBeEnabled());
+    expect(mockApi.getValidationResults).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Upload' }));
+    await user.upload(screen.getByLabelText(/Product catalog \(CSV\)/), new File(['c,d'], 'b.csv'));
+    await user.click(screen.getByRole('button', { name: /Upload CSV/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Validation' })).toBeEnabled());
+
+    await user.click(screen.getByRole('button', { name: 'Validation' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Validate products' })).toBeInTheDocument());
+
+    expect(mockApi.getValidationResults).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'AI' })).toBeDisabled();
+  });
+
   it('keeps a record of uploaded files across tab switches', async () => {
     mockApi.uploadCSV.mockResolvedValue({ success: true, file_id: 'file-1' });
     mockApi.parseCSV.mockResolvedValue({ success: true, data: { data_id: 'data-1' } });

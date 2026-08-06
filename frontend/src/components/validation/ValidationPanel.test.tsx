@@ -46,15 +46,30 @@ describe('ValidationPanel', () => {
     expect(screen.getByText(/Validation finished \(2 products\)/)).toBeInTheDocument();
   });
 
-  it('loads existing results', async () => {
+  it('auto-loads the stored validation results when autoLoad is enabled', async () => {
     mockApi.getValidationResults.mockResolvedValue({ success: true, data: { products } });
-    renderWithI18n(<ValidationPanel dataId="d1" />, 'en');
-
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: 'Load results' }));
+    renderWithI18n(<ValidationPanel dataId="d1" autoLoad />, 'en');
 
     await waitFor(() => expect(mockApi.getValidationResults).toHaveBeenCalledWith('d1'));
-    expect(await screen.findByText(/Results loaded \(2 products\)/)).toBeInTheDocument();
+    expect(await screen.findByText('2 total')).toBeInTheDocument();
+    expect(screen.getByText('1 valid')).toBeInTheDocument();
+    expect(screen.getByText('1 with errors')).toBeInTheDocument();
+    expect(screen.getByText(/Results loaded \(2 products\)/)).toBeInTheDocument();
+  });
+
+  it('does not auto-load results when autoLoad is disabled', async () => {
+    renderWithI18n(<ValidationPanel dataId="d1" />, 'en');
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Validate products' })).toBeEnabled());
+    expect(mockApi.getValidationResults).not.toHaveBeenCalled();
+  });
+
+  it('shows the error when auto-loading fails', async () => {
+    mockApi.getValidationResults.mockRejectedValue(new Error('results crashed'));
+    renderWithI18n(<ValidationPanel dataId="d1" autoLoad />, 'en');
+
+    expect(await screen.findByText('results crashed')).toBeInTheDocument();
+    expect(mockApi.validateProducts).not.toHaveBeenCalled();
   });
 
   it('shows an error when validation fails', async () => {

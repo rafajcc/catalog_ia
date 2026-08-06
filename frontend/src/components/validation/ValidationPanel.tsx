@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getApiService } from '../../services/api-service';
 import { getErrorMessage } from '../../utils/download';
 import { useI18n } from '../../i18n';
@@ -12,15 +12,42 @@ interface Message {
 interface ValidationPanelProps {
   dataId: string;
   csvFiles?: UploadItem[];
+  autoLoad?: boolean;
   onValidated?: () => void;
 }
 
-export default function ValidationPanel({ dataId, csvFiles = [], onValidated }: ValidationPanelProps) {
+export default function ValidationPanel({ dataId, csvFiles = [], autoLoad = false, onValidated }: ValidationPanelProps) {
   const api = getApiService();
   const { t } = useI18n();
   const [products, setProducts] = useState<ProductData[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
+  const autoLoadRef = useRef(autoLoad);
+  autoLoadRef.current = autoLoad;
+
+  useEffect(() => {
+    if (!autoLoadRef.current) return;
+    let active = true;
+    (async () => {
+      try {
+        const result = await api.getValidationResults(dataId);
+        if (!active) return;
+        const items = Array.isArray(result?.data?.products) ? result.data.products : [];
+        setProducts(items);
+        setMessage({
+          kind: 'success',
+          text: `${t('validation.loaded')} (${t('validation.countProducts', { count: items.length })})`
+        });
+      } catch (error) {
+        if (!active) return;
+        setProducts([]);
+        setMessage({ kind: 'error', text: getErrorMessage(error) });
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [dataId, api, t]);
 
   async function run(action: () => Promise<{ data?: any }>, successKey: string, onSuccess?: () => void) {
     setBusy(true);
@@ -59,14 +86,6 @@ export default function ValidationPanel({ dataId, csvFiles = [], onValidated }: 
         onClick={() => run(() => api.validateProducts(dataId), 'validation.finished', onValidated)}
       >
         {t('validation.validateButton')}
-      </button>
-      <button
-        type="button"
-        className="btn"
-        disabled={busy}
-        onClick={() => run(() => api.getValidationResults(dataId), 'validation.loaded')}
-      >
-        {t('validation.loadButton')}
       </button>
 
       {products.length > 0 && (

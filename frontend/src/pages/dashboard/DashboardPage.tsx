@@ -26,22 +26,34 @@ export default function DashboardPage() {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState('upload');
   const [dataId, setDataId] = useState<string | undefined>(undefined);
-  const [validated, setValidated] = useState(false);
+  const [dataVersion, setDataVersion] = useState(0);
+  const [validatedAtVersion, setValidatedAtVersion] = useState<number | null>(null);
   const [showConfiguration, setShowConfiguration] = useState(false);
   const [uploadedCsvs, setUploadedCsvs] = useState<UploadItem[]>([]);
   const [uploadedImages, setUploadedImages] = useState<UploadItem[]>([]);
   const status = useBackendStatus();
+
+  const validated = dataId !== undefined && validatedAtVersion !== null && validatedAtVersion === dataVersion;
 
   async function refreshUploads() {
     const res = await getApiService().getUploads();
     const data = res?.data ?? {};
     const csvs = Array.isArray(data.csvs) ? data.csvs : [];
     const images = Array.isArray(data.images) ? data.images : [];
+    const csvsChanged =
+      csvs.length !== uploadedCsvs.length ||
+      csvs.some(
+        (csv: UploadItem, index: number) =>
+          uploadedCsvs[index]?.id !== csv.id || uploadedCsvs[index]?.name !== csv.name
+      );
     setUploadedCsvs(csvs);
     setUploadedImages(images);
+    if (csvsChanged) {
+      setDataVersion((value) => value + 1);
+      setValidatedAtVersion(null);
+    }
     if (csvs.length === 0) {
       setDataId(undefined);
-      setValidated(false);
       setActiveTab('upload');
     }
   }
@@ -71,7 +83,7 @@ export default function DashboardPage() {
       tab.id === 'images'
         ? !(dataId && uploadedImages.length > 0)
         : tab.id === 'ai' || tab.id === 'sync' || tab.id === 'review'
-          ? !(dataId && validated)
+          ? !validated
           : tab.id !== 'upload' && !dataId
   }));
 
@@ -82,11 +94,12 @@ export default function DashboardPage() {
 
   function handleDataReady(id: string) {
     setDataId(id);
-    setValidated(false);
+    setValidatedAtVersion(null);
   }
 
   function handleCsvUploaded(item: UploadItem) {
     setUploadedCsvs((prev) => [...prev, item]);
+    setDataVersion((value) => value + 1);
   }
 
   function handleImagesUploaded(items: UploadItem[]) {
@@ -124,7 +137,8 @@ export default function DashboardPage() {
                 <ValidationPanel
                   dataId={dataId}
                   csvFiles={uploadedCsvs}
-                  onValidated={() => setValidated(true)}
+                  autoLoad={validatedAtVersion !== null && validatedAtVersion === dataVersion}
+                  onValidated={() => setValidatedAtVersion(dataVersion)}
                 />
               ) : (
                 <p className="message error">{t('dashboard.emptyDataNotice')}</p>
