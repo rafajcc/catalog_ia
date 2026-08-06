@@ -126,6 +126,31 @@ export class ApiService {
     return response.data;
   }
 
+  async getUploads(): Promise<ApiResponse> {
+    const response = await this.client.get('/uploads');
+    return response.data;
+  }
+
+  async deleteCsvUpload(fileId: string): Promise<ApiResponse> {
+    const response = await this.client.delete(`/upload/csv/${encodeURIComponent(fileId)}`);
+    return response.data;
+  }
+
+  async deleteImageUpload(name: string): Promise<ApiResponse> {
+    const response = await this.client.delete(`/upload/images/${encodeURIComponent(name)}`);
+    return response.data;
+  }
+
+  async deleteAllCsvs(): Promise<ApiResponse> {
+    const response = await this.client.delete('/uploads/csv');
+    return response.data;
+  }
+
+  async deleteAllImages(): Promise<ApiResponse> {
+    const response = await this.client.delete('/uploads/images');
+    return response.data;
+  }
+
   // Data processing endpoints
   async parseCSV(fileId: string): Promise<ApiResponse> {
     const response = await this.client.post('/process/csv', { fileId });

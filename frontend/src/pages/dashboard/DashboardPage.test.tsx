@@ -13,10 +13,15 @@ describe('DashboardPage', () => {
   beforeEach(() => {
     mockApi = {
       getSystemStatus: jest.fn().mockResolvedValue({ success: true, message: 'Online' }),
+      getUploads: jest.fn().mockResolvedValue({ success: true, data: { csvs: [], images: [] } }),
       uploadCSV: jest.fn(),
       parseCSV: jest.fn(),
       uploadImages: jest.fn(),
       selectImageFolder: jest.fn(),
+      deleteCsvUpload: jest.fn().mockResolvedValue({ success: true }),
+      deleteImageUpload: jest.fn().mockResolvedValue({ success: true }),
+      deleteAllCsvs: jest.fn().mockResolvedValue({ success: true }),
+      deleteAllImages: jest.fn().mockResolvedValue({ success: true }),
       getConfiguration: jest.fn().mockResolvedValue({ success: true }),
       validateProducts: jest.fn(),
       getValidationResults: jest.fn(),
@@ -89,11 +94,7 @@ describe('DashboardPage', () => {
     await user.upload(screen.getByLabelText(/Product catalog \(CSV\)/), new File(['a,b'], 'p.csv'));
     await user.click(screen.getByRole('button', { name: /Upload CSV/ }));
 
-    await waitFor(() =>
-      expect(screen.getAllByText(/Data id: data-1/).length).toBeGreaterThan(0)
-    );
-
-    expect(screen.getByRole('button', { name: 'Validation' })).toBeEnabled();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Validation' })).toBeEnabled());
 
     await user.click(screen.getByRole('button', { name: 'Validation' }));
     await user.click(await screen.findByRole('button', { name: 'Validate products' }));
@@ -109,7 +110,7 @@ describe('DashboardPage', () => {
     const user = userEvent.setup();
     await user.upload(screen.getByLabelText(/Product catalog \(CSV\)/), new File(['a,b'], 'catalog.csv'));
     await user.click(screen.getByRole('button', { name: /Upload CSV/ }));
-    await waitFor(() => expect(screen.getAllByText(/Data id: data-1/).length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Validation' })).toBeEnabled());
 
     await user.upload(screen.getByLabelText(/Product images/), [new File(['x'], 'img.jpg', { type: 'image/jpeg' })]);
     await user.click(screen.getByRole('button', { name: 'Upload images' }));
@@ -121,5 +122,90 @@ describe('DashboardPage', () => {
     expect(screen.getAllByText('(1 uploaded)')).toHaveLength(2);
     expect(screen.getByText('catalog.csv')).toBeInTheDocument();
     expect(screen.getByText('img.jpg')).toBeInTheDocument();
+  });
+
+  it('loads the list of uploaded files from the server on mount', async () => {
+    mockApi.getUploads.mockResolvedValue({
+      success: true,
+      data: {
+        csvs: [{ id: 'file-1', name: 'products.csv' }, { id: 'file-2', name: 'extras.csv' }],
+        images: [{ id: 'a.jpg', name: 'a.jpg' }]
+      }
+    });
+    renderWithI18n(<DashboardPage />, 'en');
+
+    await waitFor(() => expect(screen.getByText('products.csv')).toBeInTheDocument());
+    expect(screen.getByText('extras.csv')).toBeInTheDocument();
+    expect(screen.getByText('a.jpg')).toBeInTheDocument();
+    expect(screen.getByText('(2 uploaded)')).toBeInTheDocument();
+    expect(screen.getByText('(1 uploaded)')).toBeInTheDocument();
+  });
+
+  it('deletes a single uploaded CSV and refreshes the list', async () => {
+    mockApi.getUploads
+      .mockResolvedValueOnce({
+        success: true,
+        data: { csvs: [{ id: 'file-1', name: 'products.csv' }], images: [] }
+      })
+      .mockResolvedValueOnce({ success: true, data: { csvs: [], images: [] } });
+    renderWithI18n(<DashboardPage />, 'en');
+
+    await waitFor(() => expect(screen.getByText('products.csv')).toBeInTheDocument());
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Delete products.csv' }));
+
+    expect(mockApi.deleteCsvUpload).toHaveBeenCalledWith('file-1');
+    await waitFor(() => expect(screen.queryByText('products.csv')).not.toBeInTheDocument());
+  });
+
+  it('deletes a single uploaded image and refreshes the list', async () => {
+    mockApi.getUploads
+      .mockResolvedValueOnce({
+        success: true,
+        data: { csvs: [], images: [{ id: 'a.jpg', name: 'a.jpg' }] }
+      })
+      .mockResolvedValueOnce({ success: true, data: { csvs: [], images: [] } });
+    renderWithI18n(<DashboardPage />, 'en');
+
+    await waitFor(() => expect(screen.getByText('a.jpg')).toBeInTheDocument());
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Delete a.jpg' }));
+
+    expect(mockApi.deleteImageUpload).toHaveBeenCalledWith('a.jpg');
+    await waitFor(() => expect(screen.queryByText('a.jpg')).not.toBeInTheDocument());
+  });
+
+  it('deletes all CSV and image files and refreshes the list', async () => {
+    mockApi.getUploads
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          csvs: [{ id: 'file-1', name: 'products.csv' }],
+          images: [{ id: 'a.jpg', name: 'a.jpg' }]
+        }
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          csvs: [],
+          images: [{ id: 'a.jpg', name: 'a.jpg' }]
+        }
+      })
+      .mockResolvedValueOnce({ success: true, data: { csvs: [], images: [] } });
+    renderWithI18n(<DashboardPage />, 'en');
+
+    await waitFor(() => expect(screen.getByText('products.csv')).toBeInTheDocument());
+
+    const user = userEvent.setup();
+    await user.click(screen.getAllByRole('button', { name: 'Delete all' })[0]);
+    expect(mockApi.deleteAllCsvs).toHaveBeenCalledTimes(1);
+
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Delete all' })).toHaveLength(1));
+    await user.click(screen.getAllByRole('button', { name: 'Delete all' })[0]);
+
+    expect(mockApi.deleteAllImages).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(screen.queryByText('products.csv')).not.toBeInTheDocument());
   });
 });

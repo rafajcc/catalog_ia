@@ -171,6 +171,71 @@ describe('API routes', () => {
     expect(second.body.error.message).toMatch(/has already been uploaded/i);
   });
 
+  it('lists, deletes and allows re-uploading files', async () => {
+    const app = makeApp();
+
+    const csv = await request(app)
+      .post('/api/upload/csv')
+      .attach('file', csvBuffer(), { filename: 'products.csv', contentType: 'text/csv' });
+    expect(csv.status).toBe(200);
+
+    const img = await request(app)
+      .post('/api/upload/images')
+      .attach('files', Buffer.from('fake-image'), { filename: 'p.jpg', contentType: 'image/jpeg' });
+    expect(img.status).toBe(200);
+
+    const listed = await request(app).get('/api/uploads');
+    expect(listed.status).toBe(200);
+    expect(listed.body.success).toBe(true);
+    expect(listed.body.data.csvs).toEqual([{ id: csv.body.file_id, name: 'products.csv' }]);
+    expect(listed.body.data.images).toEqual([{ id: 'p.jpg', name: 'p.jpg' }]);
+
+    const delCsv = await request(app).delete(`/api/upload/csv/${csv.body.file_id}`);
+    expect(delCsv.status).toBe(200);
+
+    const delImg = await request(app).delete('/api/upload/images/p.jpg');
+    expect(delImg.status).toBe(200);
+
+    const after = await request(app).get('/api/uploads');
+    expect(after.body.data.csvs).toEqual([]);
+    expect(after.body.data.images).toEqual([]);
+
+    const reupload = await request(app)
+      .post('/api/upload/images')
+      .attach('files', Buffer.from('fake-image'), { filename: 'p.jpg', contentType: 'image/jpeg' });
+    expect(reupload.status).toBe(200);
+  });
+
+  it('rejects deleting a file that is not on the server', async () => {
+    const app = makeApp();
+    const res = await request(app).delete('/api/upload/images/missing.jpg');
+    expect(res.status).toBe(404);
+  });
+
+  it('deletes all uploaded files at once', async () => {
+    const app = makeApp();
+
+    await request(app)
+      .post('/api/upload/csv')
+      .attach('file', csvBuffer(), { filename: 'a.csv', contentType: 'text/csv' });
+    await request(app)
+      .post('/api/upload/images')
+      .attach('files', Buffer.from('f'), { filename: 'a.jpg', contentType: 'image/jpeg' });
+    await request(app)
+      .post('/api/upload/images')
+      .attach('files', Buffer.from('f'), { filename: 'b.jpg', contentType: 'image/jpeg' });
+
+    const delAllCsv = await request(app).delete('/api/uploads/csv');
+    expect(delAllCsv.status).toBe(200);
+
+    const delAllImg = await request(app).delete('/api/uploads/images');
+    expect(delAllImg.status).toBe(200);
+
+    const after = await request(app).get('/api/uploads');
+    expect(after.body.data.csvs).toEqual([]);
+    expect(after.body.data.images).toEqual([]);
+  });
+
   it('rejects CSV processing when the file has no recognized product columns', async () => {
     const app = makeApp();
     const upload = await request(app)

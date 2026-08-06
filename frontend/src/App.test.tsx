@@ -11,7 +11,8 @@ describe('App', () => {
   beforeEach(() => {
     window.localStorage.clear();
     mockApi = {
-      getSystemStatus: jest.fn().mockResolvedValue({ success: true, message: 'Online' })
+      getSystemStatus: jest.fn().mockResolvedValue({ success: true, message: 'Online' }),
+      getUploads: jest.fn().mockResolvedValue({ success: true, data: { csvs: [], images: [] } })
     };
   });
 

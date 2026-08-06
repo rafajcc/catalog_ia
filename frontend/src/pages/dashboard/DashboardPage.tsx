@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useI18n } from '../../i18n';
 import { useBackendStatus } from '../../hooks/useBackendStatus';
+import { getApiService } from '../../services/api-service';
+import { UploadItem } from '../../types';
 import AppHeader from '../../components/layout/AppHeader';
 import TabNav, { TabItem } from '../../components/layout/TabNav';
 import UploadSection from '../../components/data-upload/UploadSection';
@@ -25,9 +27,34 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState('upload');
   const [dataId, setDataId] = useState<string | undefined>(undefined);
   const [showConfiguration, setShowConfiguration] = useState(false);
-  const [uploadedCsvs, setUploadedCsvs] = useState<string[]>([]);
-  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [uploadedCsvs, setUploadedCsvs] = useState<UploadItem[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<UploadItem[]>([]);
   const status = useBackendStatus();
+
+  async function refreshUploads() {
+    const res = await getApiService().getUploads();
+    const data = res?.data ?? {};
+    setUploadedCsvs(Array.isArray(data.csvs) ? data.csvs : []);
+    setUploadedImages(Array.isArray(data.images) ? data.images : []);
+  }
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await getApiService().getUploads();
+        if (!active) return;
+        const data = res?.data ?? {};
+        setUploadedCsvs(Array.isArray(data.csvs) ? data.csvs : []);
+        setUploadedImages(Array.isArray(data.images) ? data.images : []);
+      } catch {
+        /* backend may be offline */
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const tabs: TabItem[] = TAB_KEYS.map((tab) => ({
     id: tab.id,
@@ -40,12 +67,48 @@ export default function DashboardPage() {
     setShowConfiguration(false);
   }
 
-  function handleCsvUploaded(name: string) {
-    setUploadedCsvs((prev) => [...prev, name]);
+  function handleCsvUploaded(item: UploadItem) {
+    setUploadedCsvs((prev) => [...prev, item]);
   }
 
-  function handleImagesUploaded(names: string[]) {
-    setUploadedImages((prev) => [...prev, ...names]);
+  function handleImagesUploaded(items: UploadItem[]) {
+    setUploadedImages((prev) => [...prev, ...items]);
+  }
+
+  async function handleDeleteCsv(fileId: string) {
+    try {
+      await getApiService().deleteCsvUpload(fileId);
+    } catch {
+      /* ignore */
+    }
+    await refreshUploads();
+  }
+
+  async function handleDeleteImage(name: string) {
+    try {
+      await getApiService().deleteImageUpload(name);
+    } catch {
+      /* ignore */
+    }
+    await refreshUploads();
+  }
+
+  async function handleDeleteAllCsvs() {
+    try {
+      await getApiService().deleteAllCsvs();
+    } catch {
+      /* ignore */
+    }
+    await refreshUploads();
+  }
+
+  async function handleDeleteAllImages() {
+    try {
+      await getApiService().deleteAllImages();
+    } catch {
+      /* ignore */
+    }
+    await refreshUploads();
   }
 
   const requiresData = activeTab !== 'upload';
@@ -64,20 +127,17 @@ export default function DashboardPage() {
           <ConfigurationForm />
         ) : (
           <>
-            {dataId && (
-              <div className="chips" style={{ marginBottom: '0.75rem' }}>
-                <span className="chip">{t('common.dataId', { id: dataId })}</span>
-              </div>
-            )}
-
             {activeTab === 'upload' && (
               <UploadSection
-                dataId={dataId}
                 onDataReady={setDataId}
                 uploadedCsvs={uploadedCsvs}
                 uploadedImages={uploadedImages}
                 onCsvUploaded={handleCsvUploaded}
                 onImagesUploaded={handleImagesUploaded}
+                onDeleteCsv={handleDeleteCsv}
+                onDeleteImage={handleDeleteImage}
+                onDeleteAllCsvs={handleDeleteAllCsvs}
+                onDeleteAllImages={handleDeleteAllImages}
               />
             )}
             {activeTab === 'validation' &&

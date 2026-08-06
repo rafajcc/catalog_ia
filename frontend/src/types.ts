@@ -198,6 +198,11 @@ export interface ApiResponse {
   error?: string;
 }
 
+export interface UploadItem {
+  id: string;
+  name: string;
+}
+
 export interface PaginatedResponse<T = any> extends ApiResponse {
   items: T[];
   total: number;

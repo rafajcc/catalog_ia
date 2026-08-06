@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { getApiService } from '../../services/api-service';
 import { getErrorMessage } from '../../utils/download';
 import { useI18n } from '../../i18n';
+import { UploadItem } from '../../types';
 
 interface Message {
   kind: 'success' | 'error';
@@ -9,21 +10,27 @@ interface Message {
 }
 
 interface UploadSectionProps {
-  dataId?: string;
   onDataReady?: (dataId: string) => void;
-  uploadedCsvs?: string[];
-  uploadedImages?: string[];
-  onCsvUploaded?: (name: string) => void;
-  onImagesUploaded?: (names: string[]) => void;
+  uploadedCsvs?: UploadItem[];
+  uploadedImages?: UploadItem[];
+  onCsvUploaded?: (item: UploadItem) => void;
+  onImagesUploaded?: (items: UploadItem[]) => void;
+  onDeleteCsv?: (id: string) => void;
+  onDeleteImage?: (name: string) => void;
+  onDeleteAllCsvs?: () => void;
+  onDeleteAllImages?: () => void;
 }
 
 export default function UploadSection({
-  dataId,
   onDataReady,
   uploadedCsvs = [],
   uploadedImages = [],
   onCsvUploaded,
-  onImagesUploaded
+  onImagesUploaded,
+  onDeleteCsv,
+  onDeleteImage,
+  onDeleteAllCsvs,
+  onDeleteAllImages
 }: UploadSectionProps) {
   const api = getApiService();
   const { t } = useI18n();
@@ -42,7 +49,7 @@ export default function UploadSection({
       setMessage({ kind: 'error', text: t('upload.errorNotCsv', { name: csvFile.name }) });
       return;
     }
-    if (uploadedCsvs.includes(csvFile.name)) {
+    if (uploadedCsvs.some((item) => item.name === csvFile.name)) {
       setMessage({ kind: 'error', text: t('upload.errorDuplicateCsv', { name: csvFile.name }) });
       return;
     }
@@ -55,7 +62,7 @@ export default function UploadSection({
       if (id) {
         setMessage({ kind: 'success', text: t('upload.successProcessed', { id }) });
         onDataReady?.(id);
-        onCsvUploaded?.(csvFile.name);
+        onCsvUploaded?.({ id: upload.file_id ?? '', name: csvFile.name });
       } else {
         setMessage({ kind: 'success', text: t('upload.successUploaded') });
       }
@@ -76,7 +83,7 @@ export default function UploadSection({
       setMessage({ kind: 'error', text: t('upload.errorNotImage', { name: invalid.name }) });
       return;
     }
-    const duplicate = imageFiles.find((file) => uploadedImages.includes(file.name));
+    const duplicate = imageFiles.find((file) => uploadedImages.some((item) => item.name === file.name));
     if (duplicate) {
       setMessage({ kind: 'error', text: t('upload.errorDuplicateImage', { name: duplicate.name }) });
       return;
@@ -86,7 +93,7 @@ export default function UploadSection({
     try {
       await api.uploadImages(imageFiles);
       setMessage({ kind: 'success', text: t('upload.successImages', { count: imageFiles.length }) });
-      onImagesUploaded?.(imageFiles.map((file) => file.name));
+      onImagesUploaded?.(imageFiles.map((file) => ({ id: file.name, name: file.name })));
       setImageFiles([]);
     } catch (error) {
       setMessage({ kind: 'error', text: getErrorMessage(error) });
@@ -175,31 +182,55 @@ export default function UploadSection({
         </button>
       </div>
 
-      {dataId && (
-        <div className="chips">
-          <span className="chip">{t('common.dataId', { id: dataId })}</span>
-        </div>
-      )}
-
       {(uploadedCsvs.length > 0 || uploadedImages.length > 0) && (
         <div className="uploaded-list">
           <h3>{t('upload.uploadedFilesTitle')}</h3>
           {uploadedCsvs.length > 0 && (
             <div className="uploaded-group">
-              <strong>{t('upload.uploadedCsvsTitle')}</strong>
+              <div className="uploaded-group-header">
+                <strong>{t('upload.uploadedCsvsTitle')}</strong>
+                <button type="button" className="btn btn-small" onClick={onDeleteAllCsvs}>
+                  {t('upload.deleteAll')}
+                </button>
+              </div>
               <ul>
-                {uploadedCsvs.map((name, index) => (
-                  <li key={`csv-${index}`}>{name}</li>
+                {uploadedCsvs.map((item) => (
+                  <li key={item.id}>
+                    <span>{item.name}</span>
+                    <button
+                      type="button"
+                      className="btn btn-small"
+                      aria-label={`${t('upload.delete')} ${item.name}`}
+                      onClick={() => onDeleteCsv?.(item.id)}
+                    >
+                      {t('upload.delete')}
+                    </button>
+                  </li>
                 ))}
               </ul>
             </div>
           )}
           {uploadedImages.length > 0 && (
             <div className="uploaded-group">
-              <strong>{t('upload.uploadedImagesTitle')}</strong>
+              <div className="uploaded-group-header">
+                <strong>{t('upload.uploadedImagesTitle')}</strong>
+                <button type="button" className="btn btn-small" onClick={onDeleteAllImages}>
+                  {t('upload.deleteAll')}
+                </button>
+              </div>
               <ul>
-                {uploadedImages.map((name, index) => (
-                  <li key={`img-${index}`}>{name}</li>
+                {uploadedImages.map((item) => (
+                  <li key={item.id}>
+                    <span>{item.name}</span>
+                    <button
+                      type="button"
+                      className="btn btn-small"
+                      aria-label={`${t('upload.delete')} ${item.name}`}
+                      onClick={() => onDeleteImage?.(item.id)}
+                    >
+                      {t('upload.delete')}
+                    </button>
+                  </li>
                 ))}
               </ul>
             </div>

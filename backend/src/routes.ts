@@ -325,6 +325,69 @@ export function createApiRouter(deps: RouteDependencies): Router {
     })
   );
 
+  router.get('/uploads', (_req, res) => {
+    res.json({
+      success: true,
+      data: {
+        csvs: [...store.uploads.values()].map((upload) => ({
+          id: upload.fileId,
+          name: upload.originalName
+        })),
+        images: store.images.map((image) => ({ id: image.filename, name: image.filename }))
+      }
+    });
+  });
+
+  router.delete(
+    '/upload/csv/:fileId',
+    wrap(async (req, res) => {
+      const uploaded = store.uploads.get(req.params.fileId);
+      if (!uploaded) throw new AppError('Uploaded file not found', 404);
+
+      store.uploads.delete(req.params.fileId);
+      await fs.remove(uploaded.path);
+      res.json({ success: true, message: 'CSV file removed' });
+    })
+  );
+
+  router.delete(
+    '/upload/images/:name',
+    wrap(async (req, res) => {
+      const index = store.images.findIndex((image) => image.filename === req.params.name);
+      if (index === -1) throw new AppError('Image not found', 404);
+
+      const [removed] = store.images.splice(index, 1);
+      if (removed.path.startsWith(path.resolve(uploadsDir))) {
+        await fs.remove(removed.path);
+      }
+      res.json({ success: true, message: 'Image removed' });
+    })
+  );
+
+  router.delete(
+    '/uploads/csv',
+    wrap(async (req, res) => {
+      for (const upload of store.uploads.values()) {
+        await fs.remove(upload.path);
+      }
+      store.uploads.clear();
+      res.json({ success: true, message: 'All CSV files removed' });
+    })
+  );
+
+  router.delete(
+    '/uploads/images',
+    wrap(async (req, res) => {
+      for (const image of store.images) {
+        if (image.path.startsWith(path.resolve(uploadsDir))) {
+          await fs.remove(image.path);
+        }
+      }
+      store.images = [];
+      res.json({ success: true, message: 'All images removed' });
+    })
+  );
+
   // Data processing
   router.post(
     '/process/csv',

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { renderWithI18n } from '../../test-utils';
 import userEvent from '@testing-library/user-event';
 import UploadSection from './UploadSection';
+import { UploadItem } from '../../types';
 
 var mockApi: any;
 
@@ -15,14 +16,14 @@ function makeFile(name: string) {
 }
 
 function UploadHarness() {
-  const [csvs, setCsvs] = useState<string[]>([]);
-  const [images, setImages] = useState<string[]>([]);
+  const [csvs, setCsvs] = useState<UploadItem[]>([]);
+  const [images, setImages] = useState<UploadItem[]>([]);
   return (
     <UploadSection
       uploadedCsvs={csvs}
       uploadedImages={images}
-      onCsvUploaded={(name) => setCsvs((prev) => [...prev, name])}
-      onImagesUploaded={(names) => setImages((prev) => [...prev, ...names])}
+      onCsvUploaded={(item) => setCsvs((prev) => [...prev, item])}
+      onImagesUploaded={(items) => setImages((prev) => [...prev, ...items])}
     />
   );
 }
@@ -50,7 +51,7 @@ describe('UploadSection', () => {
     await user.click(screen.getByRole('button', { name: /Upload CSV/ }));
 
     await waitFor(() => expect(onDataReady).toHaveBeenCalledWith('data-1'));
-    expect(onCsvUploaded).toHaveBeenCalledWith('products.csv');
+    expect(onCsvUploaded).toHaveBeenCalledWith({ id: 'file-1', name: 'products.csv' });
     expect(mockApi.uploadCSV).toHaveBeenCalledWith(expect.any(File));
     expect(mockApi.parseCSV).toHaveBeenCalledWith('file-1');
     expect(screen.getByText(/File processed. Data id: data-1/)).toBeInTheDocument();
@@ -108,7 +109,10 @@ describe('UploadSection', () => {
 
     expect(mockApi.uploadImages).toHaveBeenCalledTimes(1);
     expect((mockApi.uploadImages.mock.calls[0][0] as File[]).length).toBe(2);
-    expect(onImagesUploaded).toHaveBeenCalledWith(['a.jpg', 'b.jpg']);
+    expect(onImagesUploaded).toHaveBeenCalledWith([
+      { id: 'a.jpg', name: 'a.jpg' },
+      { id: 'b.jpg', name: 'b.jpg' }
+    ]);
     expect(await screen.findByText('2 image(s) uploaded')).toBeInTheDocument();
   });
 
@@ -140,11 +144,6 @@ describe('UploadSection', () => {
 
     expect(mockApi.selectImageFolder).toHaveBeenCalledWith('C:/images');
     expect(await screen.findByText('Image folder selected')).toBeInTheDocument();
-  });
-
-  it('shows the current data id chip when provided', () => {
-    renderWithI18n(<UploadSection dataId="data-9" />, 'en');
-    expect(screen.getByText(/Data id: data-9/)).toBeInTheDocument();
   });
 
   it('keeps a counter and a list of every uploaded CSV and image', async () => {
@@ -212,5 +211,38 @@ describe('UploadSection', () => {
     expect(screen.getByText(/"a.jpg" has already been uploaded/)).toBeInTheDocument();
     expect(mockApi.uploadImages).toHaveBeenCalledTimes(1);
   });
-});
 
+  it('offers a delete button for each uploaded file and a delete-all per group', async () => {
+    const onDeleteCsv = jest.fn();
+    const onDeleteImage = jest.fn();
+    const onDeleteAllCsvs = jest.fn();
+    const onDeleteAllImages = jest.fn();
+
+    renderWithI18n(
+      <UploadSection
+        uploadedCsvs={[{ id: 'file-1', name: 'catalog.csv' }]}
+        uploadedImages={[{ id: 'img.jpg', name: 'img.jpg' }]}
+        onDeleteCsv={onDeleteCsv}
+        onDeleteImage={onDeleteImage}
+        onDeleteAllCsvs={onDeleteAllCsvs}
+        onDeleteAllImages={onDeleteAllImages}
+      />,
+      'en'
+    );
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Delete catalog.csv' }));
+    await user.click(screen.getByRole('button', { name: 'Delete img.jpg' }));
+
+    expect(onDeleteCsv).toHaveBeenCalledWith('file-1');
+    expect(onDeleteImage).toHaveBeenCalledWith('img.jpg');
+
+    const deleteAllButtons = screen.getAllByRole('button', { name: 'Delete all' });
+    expect(deleteAllButtons).toHaveLength(2);
+    await user.click(deleteAllButtons[0]);
+    await user.click(deleteAllButtons[1]);
+
+    expect(onDeleteAllCsvs).toHaveBeenCalledTimes(1);
+    expect(onDeleteAllImages).toHaveBeenCalledTimes(1);
+  });
+});
