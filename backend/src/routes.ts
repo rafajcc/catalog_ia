@@ -7,7 +7,7 @@ import fileUpload from 'express-fileupload';
 import fs from 'fs-extra';
 import { AppError } from './utils/error-handler';
 import { DataStore, DataSet, UploadedFile } from './store';
-import { CSVParser } from './modules/csv-parser/csv-parser';
+import { CSVParser, CSV_TEMPLATE_HEADERS } from './modules/csv-parser/csv-parser';
 import { ProductNormalizer } from './modules/product-normalizer/product-normalizer';
 import { ProductValidator } from './modules/validator/validator';
 import { ImageMatcher } from './modules/image-matcher/image-matcher';
@@ -69,6 +69,31 @@ function assertCsvFile(file: fileUpload.UploadedFile): void {
 function isBinaryContent(data: Buffer): boolean {
   const sample = data.subarray(0, BINARY_SNIFF_LENGTH);
   return sample.includes(0);
+}
+
+function assertCsvFormat(file: fileUpload.UploadedFile): void {
+  const content = file.data.toString('utf8');
+  const firstLine = content.split(/\r?\n/)[0];
+  if (!firstLine || !firstLine.trim()) {
+    throw new AppError('The CSV file is empty', 400);
+  }
+  const headers = firstLine
+    .split(',')
+    .map((header) => header.trim().toLowerCase())
+    .filter(Boolean);
+  if (headers.length !== CSV_TEMPLATE_HEADERS.length) {
+    throw new AppError(
+      `The file "${file.name}" has ${headers.length} column(s) but ${CSV_TEMPLATE_HEADERS.length} are expected. Download the template to see the expected format.`,
+      400
+    );
+  }
+  const missing = CSV_TEMPLATE_HEADERS.filter((header) => !headers.includes(header));
+  if (missing.length > 0) {
+    throw new AppError(
+      `The file "${file.name}" does not follow the expected format. Missing columns: ${missing.join(', ')}.`,
+      400
+    );
+  }
 }
 
 function assertImageFile(file: fileUpload.UploadedFile): void {
@@ -234,6 +259,7 @@ export function createApiRouter(deps: RouteDependencies): Router {
     wrap(async (req, res) => {
       const file = getUploadedFile(req.files?.file);
       assertCsvFile(file);
+      assertCsvFormat(file);
 
       if ([...store.uploads.values()].some((upload) => upload.originalName === file.name)) {
         throw new AppError(`The file "${file.name}" has already been uploaded`, 400);
@@ -324,6 +350,14 @@ export function createApiRouter(deps: RouteDependencies): Router {
       });
     })
   );
+
+  router.get('/template/csv', (_req, res) => {
+    const headerLine = CSV_TEMPLATE_HEADERS.join(',');
+    const emptyRow = CSV_TEMPLATE_HEADERS.map(() => '').join(',');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename=catalog_template.csv');
+    res.send(`${headerLine}\n${emptyRow}\n`);
+  });
 
   router.get('/uploads', (_req, res) => {
     res.json({

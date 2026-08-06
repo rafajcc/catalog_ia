@@ -33,6 +33,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The validation, images, AI, sync and review tabs are disabled (non-clickable) until a CSV has been uploaded and processed, so downstream steps cannot be reached without data.
 - Multiple CSV and image uploads no longer replace each other: the upload panel keeps a running counter next to the "Product catalog (CSV)" and "Product images" labels plus an "Uploaded files" list at the bottom with every file name, persisted while navigating between tabs.
 - Duplicate uploads are rejected: uploading the same CSV or image file again shows a clear error in the panel and is also refused by the backend (by filename), and re-selecting an image folder skips files already present.
+- Uploaded-file management in the upload panel: the "Uploaded files" list is now backed by `GET /api/uploads` and supports per-file and delete-all removal (`DELETE /api/uploads/csv/:id`, `DELETE /api/uploads/images/:id`, `DELETE /api/uploads/csv/all`, `DELETE /api/uploads/images/all`) with success messages, and the CSV/data tabs re-lock when every CSV has been deleted.
+- CSV template download: a "Download template" button in the upload panel fetches `GET /api/template/csv` and saves `catalog_template.csv` (16 ordered columns: `ean,reference,name,sku,price,wholesale_price,quantity,stock,brand,manufacturer,category,tax,weight,description_short,description,image_hints`).
+- CSV upload format validation: uploads are rejected when the column count differs from the 16 expected columns or the required headers are missing (`assertCsvFormat` in `backend/src/routes.ts`, with a "Download the template" hint); cell content is deliberately not validated here since data validation happens in the next tab.
+- CSV upload success message now shows the uploaded file name (`upload.successUploaded`), and new i18n keys cover template download and deleted CSV/image/all messages in Spanish and English.
+
+### Fixed
+- A lint error from an empty `CSVParserConfig` interface left in the CSV parser; it is removed and `CSV_TEMPLATE_HEADERS` is exported instead.
 
 ### Fixed
 - The frontend `api-service.ts` had an invalid Python-style docstring at the top and imported a non-existent `types` module; both are resolved, methods are typed against the shared API contract, and the service is exposed through a lazy singleton.

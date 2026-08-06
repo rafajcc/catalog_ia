@@ -131,6 +131,13 @@ export class ApiService {
     return response.data;
   }
 
+  async getCsvTemplate(): Promise<Blob> {
+    const response = await this.client.get('/template/csv', {
+      responseType: 'blob'
+    });
+    return response.data;
+  }
+
   async deleteCsvUpload(fileId: string): Promise<ApiResponse> {
     const response = await this.client.delete(`/upload/csv/${encodeURIComponent(fileId)}`);
     return response.data;

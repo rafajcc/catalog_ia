@@ -325,5 +325,12 @@ describe('ApiService', () => {
       expect(blob).toBeInstanceOf(Blob);
       expect(mockGet).toHaveBeenCalledWith('/download/tmp/file.csv', { responseType: 'blob' });
     });
+
+    it('getCsvTemplate requests the template as a blob', async () => {
+      mockGet.mockResolvedValue({ data: new Blob(['ean,name']) });
+      const blob = await service.getCsvTemplate();
+      expect(blob).toBeInstanceOf(Blob);
+      expect(mockGet).toHaveBeenCalledWith('/template/csv', { responseType: 'blob' });
+    });
   });
 });

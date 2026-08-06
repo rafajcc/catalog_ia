@@ -208,4 +208,22 @@ describe('DashboardPage', () => {
     expect(mockApi.deleteAllImages).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(screen.queryByText('products.csv')).not.toBeInTheDocument());
   });
+
+  it('re-locks the data tabs after all CSV files are deleted', async () => {
+    mockApi.uploadCSV.mockResolvedValue({ success: true, file_id: 'file-1' });
+    mockApi.parseCSV.mockResolvedValue({ success: true, data: { data_id: 'data-1' } });
+    mockApi.getUploads
+      .mockResolvedValueOnce({ success: true, data: { csvs: [], images: [] } })
+      .mockResolvedValueOnce({ success: true, data: { csvs: [], images: [] } });
+    renderWithI18n(<DashboardPage />, 'en');
+
+    const user = userEvent.setup();
+    await user.upload(screen.getByLabelText(/Product catalog \(CSV\)/), new File(['a,b'], 'p.csv'));
+    await user.click(screen.getByRole('button', { name: /Upload CSV/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Validation' })).toBeEnabled());
+
+    await user.click(screen.getByRole('button', { name: 'Delete all' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Validation' })).toBeDisabled());
+  });
 });

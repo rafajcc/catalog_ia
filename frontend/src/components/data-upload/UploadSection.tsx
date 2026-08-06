@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { getApiService } from '../../services/api-service';
-import { getErrorMessage } from '../../utils/download';
+import { downloadBlob, getErrorMessage } from '../../utils/download';
 import { useI18n } from '../../i18n';
 import { UploadItem } from '../../types';
 
@@ -15,10 +15,7 @@ interface UploadSectionProps {
   uploadedImages?: UploadItem[];
   onCsvUploaded?: (item: UploadItem) => void;
   onImagesUploaded?: (items: UploadItem[]) => void;
-  onDeleteCsv?: (id: string) => void;
-  onDeleteImage?: (name: string) => void;
-  onDeleteAllCsvs?: () => void;
-  onDeleteAllImages?: () => void;
+  onUploadsChanged?: () => void;
 }
 
 export default function UploadSection({
@@ -27,10 +24,7 @@ export default function UploadSection({
   uploadedImages = [],
   onCsvUploaded,
   onImagesUploaded,
-  onDeleteCsv,
-  onDeleteImage,
-  onDeleteAllCsvs,
-  onDeleteAllImages
+  onUploadsChanged
 }: UploadSectionProps) {
   const api = getApiService();
   const { t } = useI18n();
@@ -59,12 +53,10 @@ export default function UploadSection({
       const upload = await api.uploadCSV(csvFile);
       const parsed = await api.parseCSV(upload.file_id ?? '');
       const id = parsed?.data?.data_id ?? upload.file_id ?? '';
+      setMessage({ kind: 'success', text: t('upload.successUploaded', { name: csvFile.name }) });
+      onCsvUploaded?.({ id: upload.file_id ?? '', name: csvFile.name });
       if (id) {
-        setMessage({ kind: 'success', text: t('upload.successProcessed', { id }) });
         onDataReady?.(id);
-        onCsvUploaded?.({ id: upload.file_id ?? '', name: csvFile.name });
-      } else {
-        setMessage({ kind: 'success', text: t('upload.successUploaded') });
       }
     } catch (error) {
       setMessage({ kind: 'error', text: getErrorMessage(error) });
@@ -119,6 +111,76 @@ export default function UploadSection({
     }
   }
 
+  async function handleDownloadTemplate() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const blob = await api.getCsvTemplate();
+      downloadBlob(blob, 'catalog_template.csv');
+      setMessage({ kind: 'success', text: t('upload.successTemplate') });
+    } catch (error) {
+      setMessage({ kind: 'error', text: getErrorMessage(error) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDeleteCsv(item: UploadItem) {
+    setBusy(true);
+    setMessage(null);
+    try {
+      await api.deleteCsvUpload(item.id);
+      setMessage({ kind: 'success', text: t('upload.successDeletedCsv', { name: item.name }) });
+    } catch (error) {
+      setMessage({ kind: 'error', text: getErrorMessage(error) });
+    } finally {
+      setBusy(false);
+      onUploadsChanged?.();
+    }
+  }
+
+  async function handleDeleteImage(item: UploadItem) {
+    setBusy(true);
+    setMessage(null);
+    try {
+      await api.deleteImageUpload(item.id);
+      setMessage({ kind: 'success', text: t('upload.successDeletedImage', { name: item.name }) });
+    } catch (error) {
+      setMessage({ kind: 'error', text: getErrorMessage(error) });
+    } finally {
+      setBusy(false);
+      onUploadsChanged?.();
+    }
+  }
+
+  async function handleDeleteAllCsvs() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      await api.deleteAllCsvs();
+      setMessage({ kind: 'success', text: t('upload.successDeletedAllCsvs') });
+    } catch (error) {
+      setMessage({ kind: 'error', text: getErrorMessage(error) });
+    } finally {
+      setBusy(false);
+      onUploadsChanged?.();
+    }
+  }
+
+  async function handleDeleteAllImages() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      await api.deleteAllImages();
+      setMessage({ kind: 'success', text: t('upload.successDeletedAllImages') });
+    } catch (error) {
+      setMessage({ kind: 'error', text: getErrorMessage(error) });
+    } finally {
+      setBusy(false);
+      onUploadsChanged?.();
+    }
+  }
+
   return (
     <section className="card">
       <h2>{t('upload.title')}</h2>
@@ -137,13 +199,11 @@ export default function UploadSection({
           disabled={busy}
           onChange={(event) => setCsvFile(event.target.files?.[0] ?? null)}
         />
-        <button
-          type="button"
-          className="btn primary"
-          disabled={busy}
-          onClick={handleCsvUpload}
-        >
+        <button type="button" className="btn primary" disabled={busy} onClick={handleCsvUpload}>
           {t('upload.csvButton')}
+        </button>
+        <button type="button" className="btn primary" disabled={busy} onClick={handleDownloadTemplate}>
+          {t('upload.templateButton')}
         </button>
       </div>
 
@@ -189,7 +249,7 @@ export default function UploadSection({
             <div className="uploaded-group">
               <div className="uploaded-group-header">
                 <strong>{t('upload.uploadedCsvsTitle')}</strong>
-                <button type="button" className="btn btn-small" onClick={onDeleteAllCsvs}>
+                <button type="button" className="btn btn-small" disabled={busy} onClick={handleDeleteAllCsvs}>
                   {t('upload.deleteAll')}
                 </button>
               </div>
@@ -200,8 +260,9 @@ export default function UploadSection({
                     <button
                       type="button"
                       className="btn btn-small"
+                      disabled={busy}
                       aria-label={`${t('upload.delete')} ${item.name}`}
-                      onClick={() => onDeleteCsv?.(item.id)}
+                      onClick={() => handleDeleteCsv(item)}
                     >
                       {t('upload.delete')}
                     </button>
@@ -214,7 +275,7 @@ export default function UploadSection({
             <div className="uploaded-group">
               <div className="uploaded-group-header">
                 <strong>{t('upload.uploadedImagesTitle')}</strong>
-                <button type="button" className="btn btn-small" onClick={onDeleteAllImages}>
+                <button type="button" className="btn btn-small" disabled={busy} onClick={handleDeleteAllImages}>
                   {t('upload.deleteAll')}
                 </button>
               </div>
@@ -225,8 +286,9 @@ export default function UploadSection({
                     <button
                       type="button"
                       className="btn btn-small"
+                      disabled={busy}
                       aria-label={`${t('upload.delete')} ${item.name}`}
-                      onClick={() => onDeleteImage?.(item.id)}
+                      onClick={() => handleDeleteImage(item)}
                     >
                       {t('upload.delete')}
                     </button>

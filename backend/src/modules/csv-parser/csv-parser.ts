@@ -13,6 +13,25 @@ import {
   ProductData
 } from '../../types';
 
+export const CSV_TEMPLATE_HEADERS = [
+  'ean',
+  'reference',
+  'name',
+  'sku',
+  'price',
+  'wholesale_price',
+  'quantity',
+  'stock',
+  'brand',
+  'manufacturer',
+  'category',
+  'tax',
+  'weight',
+  'description_short',
+  'description',
+  'image_hints'
+];
+
 export class CSVParser {
   private config: CSVConfig;
 

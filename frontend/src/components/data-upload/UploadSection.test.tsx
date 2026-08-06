@@ -34,7 +34,12 @@ describe('UploadSection', () => {
       uploadCSV: jest.fn(),
       parseCSV: jest.fn(),
       uploadImages: jest.fn(),
-      selectImageFolder: jest.fn()
+      selectImageFolder: jest.fn(),
+      getCsvTemplate: jest.fn(),
+      deleteCsvUpload: jest.fn(),
+      deleteImageUpload: jest.fn(),
+      deleteAllCsvs: jest.fn(),
+      deleteAllImages: jest.fn()
     };
   });
 
@@ -54,7 +59,7 @@ describe('UploadSection', () => {
     expect(onCsvUploaded).toHaveBeenCalledWith({ id: 'file-1', name: 'products.csv' });
     expect(mockApi.uploadCSV).toHaveBeenCalledWith(expect.any(File));
     expect(mockApi.parseCSV).toHaveBeenCalledWith('file-1');
-    expect(screen.getByText(/File processed. Data id: data-1/)).toBeInTheDocument();
+    expect(screen.getByText('CSV file uploaded: products.csv')).toBeInTheDocument();
   });
 
   it('shows an error when the CSV upload fails', async () => {
@@ -146,6 +151,27 @@ describe('UploadSection', () => {
     expect(await screen.findByText('Image folder selected')).toBeInTheDocument();
   });
 
+  it('downloads the CSV template from the backend', async () => {
+    mockApi.getCsvTemplate.mockResolvedValue(new Blob(['ean,name'], { type: 'text/csv' }));
+    renderWithI18n(<UploadSection />, 'en');
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Download template' }));
+
+    expect(mockApi.getCsvTemplate).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText('Template downloaded')).toBeInTheDocument();
+  });
+
+  it('shows an error when the template download fails', async () => {
+    mockApi.getCsvTemplate.mockRejectedValue(new Error('template unavailable'));
+    renderWithI18n(<UploadSection />, 'en');
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Download template' }));
+
+    expect(await screen.findByText('template unavailable')).toBeInTheDocument();
+  });
+
   it('keeps a counter and a list of every uploaded CSV and image', async () => {
     mockApi.uploadCSV.mockResolvedValue({ success: true, file_id: 'file-1' });
     mockApi.parseCSV.mockResolvedValue({ success: true, data: { data_id: 'data-1' } });
@@ -212,37 +238,63 @@ describe('UploadSection', () => {
     expect(mockApi.uploadImages).toHaveBeenCalledTimes(1);
   });
 
-  it('offers a delete button for each uploaded file and a delete-all per group', async () => {
-    const onDeleteCsv = jest.fn();
-    const onDeleteImage = jest.fn();
-    const onDeleteAllCsvs = jest.fn();
-    const onDeleteAllImages = jest.fn();
+  it('deletes a single file, reports it and notifies the parent', async () => {
+    mockApi.deleteCsvUpload.mockResolvedValue({ success: true });
+    mockApi.deleteImageUpload.mockResolvedValue({ success: true });
+    const onUploadsChanged = jest.fn();
 
     renderWithI18n(
       <UploadSection
         uploadedCsvs={[{ id: 'file-1', name: 'catalog.csv' }]}
         uploadedImages={[{ id: 'img.jpg', name: 'img.jpg' }]}
-        onDeleteCsv={onDeleteCsv}
-        onDeleteImage={onDeleteImage}
-        onDeleteAllCsvs={onDeleteAllCsvs}
-        onDeleteAllImages={onDeleteAllImages}
+        onUploadsChanged={onUploadsChanged}
       />,
       'en'
     );
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Delete catalog.csv' }));
+    expect(mockApi.deleteCsvUpload).toHaveBeenCalledWith('file-1');
+    expect(await screen.findByText('CSV "catalog.csv" deleted')).toBeInTheDocument();
+
     await user.click(screen.getByRole('button', { name: 'Delete img.jpg' }));
+    expect(mockApi.deleteImageUpload).toHaveBeenCalledWith('img.jpg');
+    expect(await screen.findByText('Image "img.jpg" deleted')).toBeInTheDocument();
 
-    expect(onDeleteCsv).toHaveBeenCalledWith('file-1');
-    expect(onDeleteImage).toHaveBeenCalledWith('img.jpg');
+    expect(onUploadsChanged).toHaveBeenCalledTimes(2);
+  });
 
-    const deleteAllButtons = screen.getAllByRole('button', { name: 'Delete all' });
-    expect(deleteAllButtons).toHaveLength(2);
-    await user.click(deleteAllButtons[0]);
-    await user.click(deleteAllButtons[1]);
+  it('reports an error when a delete fails', async () => {
+    mockApi.deleteCsvUpload.mockRejectedValue(new Error('delete failed'));
 
-    expect(onDeleteAllCsvs).toHaveBeenCalledTimes(1);
-    expect(onDeleteAllImages).toHaveBeenCalledTimes(1);
+    renderWithI18n(<UploadSection uploadedCsvs={[{ id: 'file-1', name: 'catalog.csv' }]} />, 'en');
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Delete catalog.csv' }));
+
+    expect(await screen.findByText('delete failed')).toBeInTheDocument();
+    expect(mockApi.deleteCsvUpload).toHaveBeenCalledWith('file-1');
+  });
+
+  it('deletes all files of each group and reports it', async () => {
+    mockApi.deleteAllCsvs.mockResolvedValue({ success: true });
+    mockApi.deleteAllImages.mockResolvedValue({ success: true });
+
+    renderWithI18n(
+      <UploadSection
+        uploadedCsvs={[{ id: 'file-1', name: 'catalog.csv' }]}
+        uploadedImages={[{ id: 'img.jpg', name: 'img.jpg' }]}
+      />,
+      'en'
+    );
+
+    const user = userEvent.setup();
+    await user.click(screen.getAllByRole('button', { name: 'Delete all' })[0]);
+    expect(mockApi.deleteAllCsvs).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText('All CSV files deleted')).toBeInTheDocument();
+
+    await user.click(screen.getAllByRole('button', { name: 'Delete all' })[1]);
+    expect(mockApi.deleteAllImages).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText('All images deleted')).toBeInTheDocument();
   });
 });

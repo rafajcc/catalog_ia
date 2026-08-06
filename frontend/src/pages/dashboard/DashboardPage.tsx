@@ -34,8 +34,14 @@ export default function DashboardPage() {
   async function refreshUploads() {
     const res = await getApiService().getUploads();
     const data = res?.data ?? {};
-    setUploadedCsvs(Array.isArray(data.csvs) ? data.csvs : []);
-    setUploadedImages(Array.isArray(data.images) ? data.images : []);
+    const csvs = Array.isArray(data.csvs) ? data.csvs : [];
+    const images = Array.isArray(data.images) ? data.images : [];
+    setUploadedCsvs(csvs);
+    setUploadedImages(images);
+    if (csvs.length === 0) {
+      setDataId(undefined);
+      setActiveTab('upload');
+    }
   }
 
   useEffect(() => {
@@ -75,42 +81,6 @@ export default function DashboardPage() {
     setUploadedImages((prev) => [...prev, ...items]);
   }
 
-  async function handleDeleteCsv(fileId: string) {
-    try {
-      await getApiService().deleteCsvUpload(fileId);
-    } catch {
-      /* ignore */
-    }
-    await refreshUploads();
-  }
-
-  async function handleDeleteImage(name: string) {
-    try {
-      await getApiService().deleteImageUpload(name);
-    } catch {
-      /* ignore */
-    }
-    await refreshUploads();
-  }
-
-  async function handleDeleteAllCsvs() {
-    try {
-      await getApiService().deleteAllCsvs();
-    } catch {
-      /* ignore */
-    }
-    await refreshUploads();
-  }
-
-  async function handleDeleteAllImages() {
-    try {
-      await getApiService().deleteAllImages();
-    } catch {
-      /* ignore */
-    }
-    await refreshUploads();
-  }
-
   const requiresData = activeTab !== 'upload';
 
   return (
@@ -134,10 +104,7 @@ export default function DashboardPage() {
                 uploadedImages={uploadedImages}
                 onCsvUploaded={handleCsvUploaded}
                 onImagesUploaded={handleImagesUploaded}
-                onDeleteCsv={handleDeleteCsv}
-                onDeleteImage={handleDeleteImage}
-                onDeleteAllCsvs={handleDeleteAllCsvs}
-                onDeleteAllImages={handleDeleteAllImages}
+                onUploadsChanged={refreshUploads}
               />
             )}
             {activeTab === 'validation' &&
