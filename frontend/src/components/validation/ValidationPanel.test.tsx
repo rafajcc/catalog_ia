@@ -66,5 +66,37 @@ describe('ValidationPanel', () => {
 
     expect(await screen.findByText('validation crashed')).toBeInTheDocument();
   });
+
+  it('lists the CSV files being validated', () => {
+    renderWithI18n(
+      <ValidationPanel
+        dataId="d1"
+        csvFiles={[
+          { id: 'file-1', name: 'products.csv' },
+          { id: 'file-2', name: 'catalog.csv' }
+        ]}
+      />,
+      'en'
+    );
+
+    expect(screen.getByText('Loaded files: products.csv, catalog.csv')).toBeInTheDocument();
+  });
+
+  it('does not render the file list when there are no files', () => {
+    renderWithI18n(<ValidationPanel dataId="d1" />, 'en');
+
+    expect(screen.queryByText(/Loaded files:/)).not.toBeInTheDocument();
+  });
+
+  it('invokes onValidated after validation succeeds', async () => {
+    mockApi.validateProducts.mockResolvedValue({ success: true, data: { products } });
+    const onValidated = jest.fn();
+    renderWithI18n(<ValidationPanel dataId="d1" onValidated={onValidated} />, 'en');
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Validate products' }));
+
+    await waitFor(() => expect(onValidated).toHaveBeenCalledTimes(1));
+  });
 });
 

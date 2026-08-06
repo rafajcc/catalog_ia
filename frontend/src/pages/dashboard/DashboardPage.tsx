@@ -26,6 +26,7 @@ export default function DashboardPage() {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState('upload');
   const [dataId, setDataId] = useState<string | undefined>(undefined);
+  const [validated, setValidated] = useState(false);
   const [showConfiguration, setShowConfiguration] = useState(false);
   const [uploadedCsvs, setUploadedCsvs] = useState<UploadItem[]>([]);
   const [uploadedImages, setUploadedImages] = useState<UploadItem[]>([]);
@@ -40,6 +41,7 @@ export default function DashboardPage() {
     setUploadedImages(images);
     if (csvs.length === 0) {
       setDataId(undefined);
+      setValidated(false);
       setActiveTab('upload');
     }
   }
@@ -68,12 +70,19 @@ export default function DashboardPage() {
     disabled:
       tab.id === 'images'
         ? !(dataId && uploadedImages.length > 0)
-        : tab.id !== 'upload' && !dataId
+        : tab.id === 'ai' || tab.id === 'sync' || tab.id === 'review'
+          ? !(dataId && validated)
+          : tab.id !== 'upload' && !dataId
   }));
 
   function handleTabChange(id: string) {
     setActiveTab(id);
     setShowConfiguration(false);
+  }
+
+  function handleDataReady(id: string) {
+    setDataId(id);
+    setValidated(false);
   }
 
   function handleCsvUploaded(item: UploadItem) {
@@ -102,7 +111,7 @@ export default function DashboardPage() {
           <>
             {activeTab === 'upload' && (
               <UploadSection
-                onDataReady={setDataId}
+                onDataReady={handleDataReady}
                 uploadedCsvs={uploadedCsvs}
                 uploadedImages={uploadedImages}
                 onCsvUploaded={handleCsvUploaded}
@@ -111,7 +120,15 @@ export default function DashboardPage() {
               />
             )}
             {activeTab === 'validation' &&
-              (dataId ? <ValidationPanel dataId={dataId} /> : <p className="message error">{t('dashboard.emptyDataNotice')}</p>)}
+              (dataId ? (
+                <ValidationPanel
+                  dataId={dataId}
+                  csvFiles={uploadedCsvs}
+                  onValidated={() => setValidated(true)}
+                />
+              ) : (
+                <p className="message error">{t('dashboard.emptyDataNotice')}</p>
+              ))}
             {activeTab === 'images' &&
               (dataId && uploadedImages.length > 0 ? (
                 <ImageMatchingPanel dataId={dataId} />

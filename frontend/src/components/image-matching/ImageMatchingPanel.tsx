@@ -43,9 +43,6 @@ export default function ImageMatchingPanel({ dataId }: { dataId: string }) {
   return (
     <section className="card">
       <h2>{t('images.title')}</h2>
-      <p>
-        {t('common.dataId', { id: dataId })}
-      </p>
 
       <div className="field">
         <label htmlFor="im-strategy">{t('images.strategy')}</label>

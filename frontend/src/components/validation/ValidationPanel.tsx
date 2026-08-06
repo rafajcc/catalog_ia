@@ -2,27 +2,34 @@ import { useState } from 'react';
 import { getApiService } from '../../services/api-service';
 import { getErrorMessage } from '../../utils/download';
 import { useI18n } from '../../i18n';
-import { ProductData } from '../../types';
+import { ProductData, UploadItem } from '../../types';
 
 interface Message {
   kind: 'success' | 'error';
   text: string;
 }
 
-export default function ValidationPanel({ dataId }: { dataId: string }) {
+interface ValidationPanelProps {
+  dataId: string;
+  csvFiles?: UploadItem[];
+  onValidated?: () => void;
+}
+
+export default function ValidationPanel({ dataId, csvFiles = [], onValidated }: ValidationPanelProps) {
   const api = getApiService();
   const { t } = useI18n();
   const [products, setProducts] = useState<ProductData[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
 
-  async function run(action: () => Promise<{ data?: any }>, successKey: string) {
+  async function run(action: () => Promise<{ data?: any }>, successKey: string, onSuccess?: () => void) {
     setBusy(true);
     setMessage(null);
     try {
       const result = await action();
       const items = Array.isArray(result.data?.products) ? result.data.products : [];
       setProducts(items);
+      onSuccess?.();
       setMessage({
         kind: 'success',
         text: `${t(successKey)} (${t('validation.countProducts', { count: items.length })})`
@@ -40,14 +47,16 @@ export default function ValidationPanel({ dataId }: { dataId: string }) {
   return (
     <section className="card">
       <h2>{t('validation.title')}</h2>
-      <p>
-        {t('common.dataId', { id: dataId })}
-      </p>
+      {csvFiles.length > 0 && (
+        <p>
+          {t('validation.filesLabel')} {csvFiles.map((file) => file.name).join(', ')}
+        </p>
+      )}
       <button
         type="button"
         className="btn primary"
         disabled={busy}
-        onClick={() => run(() => api.validateProducts(dataId), 'validation.finished')}
+        onClick={() => run(() => api.validateProducts(dataId), 'validation.finished', onValidated)}
       >
         {t('validation.validateButton')}
       </button>

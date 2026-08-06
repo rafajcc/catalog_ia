@@ -57,9 +57,6 @@ export default function SyncPanel({ dataId }: { dataId: string }) {
   return (
     <section className="card">
       <h2>{t('sync.title')}</h2>
-      <p>
-        {t('common.dataId', { id: dataId })}
-      </p>
 
       <div className="field">
         <label htmlFor="sync-batch-size">{t('sync.batchSize')}</label>

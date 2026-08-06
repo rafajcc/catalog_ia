@@ -60,9 +60,6 @@ export default function ReviewPanel({ dataId }: { dataId: string }) {
   return (
     <section className="card">
       <h2>{t('review.title')}</h2>
-      <p>
-        {t('common.dataId', { id: dataId })}
-      </p>
 
       <button type="button" className="btn primary" disabled={busy} onClick={handleLoad}>
         {t('review.loadButton')}

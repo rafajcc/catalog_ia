@@ -96,9 +96,19 @@ describe('DashboardPage', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Validation' })).toBeEnabled());
 
+    expect(screen.getByRole('button', { name: 'AI' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Sync' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Review' })).toBeDisabled();
+
     await user.click(screen.getByRole('button', { name: 'Validation' }));
+    expect(screen.getByText(/Loaded files:.*p\.csv/)).toBeInTheDocument();
+
     await user.click(await screen.findByRole('button', { name: 'Validate products' }));
     expect(await screen.findByText('1 total')).toBeInTheDocument();
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'AI' })).toBeEnabled());
+    expect(screen.getByRole('button', { name: 'Sync' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Review' })).toBeEnabled();
   });
 
   it('keeps a record of uploaded files across tab switches', async () => {

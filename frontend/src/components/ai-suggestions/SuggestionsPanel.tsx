@@ -52,9 +52,6 @@ export default function SuggestionsPanel({ dataId }: { dataId: string }) {
   return (
     <section className="card">
       <h2>{t('ai.title')}</h2>
-      <p>
-        {t('common.dataId', { id: dataId })}
-      </p>
 
       <div className="field">
         <label htmlFor="ai-sug-provider">{t('ai.provider')}</label>
