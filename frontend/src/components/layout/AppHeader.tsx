@@ -1,3 +1,4 @@
+import { FiSettings } from 'react-icons/fi';
 import { useI18n, Language } from '../../i18n';
 
 const STATUS_KEYS: Record<string, string> = {
@@ -12,7 +13,13 @@ const LANGUAGES: Array<{ value: Language; label: string }> = [
   { value: 'en', label: 'EN' }
 ];
 
-export default function AppHeader({ status }: { status: string }) {
+interface AppHeaderProps {
+  status: string;
+  configurationOpen?: boolean;
+  onToggleConfiguration?: () => void;
+}
+
+export default function AppHeader({ status, configurationOpen, onToggleConfiguration }: AppHeaderProps) {
   const { language, setLanguage, t } = useI18n();
   const statusClass = status === 'Online' ? 'chip' : status === 'Offline' ? 'chip error' : 'chip';
   const statusText = STATUS_KEYS[status] ? t(STATUS_KEYS[status]) : status;
@@ -58,6 +65,26 @@ export default function AppHeader({ status }: { status: string }) {
             </button>
           ))}
         </div>
+        <button
+          type="button"
+          onClick={onToggleConfiguration}
+          aria-label={t('header.settings')}
+          aria-pressed={configurationOpen === true}
+          title={t('header.settings')}
+          style={{
+            background: configurationOpen ? '#2563eb' : 'transparent',
+            color: '#ffffff',
+            border: 'none',
+            padding: '0.35rem',
+            borderRadius: '0.25rem',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <FiSettings size={18} />
+        </button>
       </div>
     </header>
   );

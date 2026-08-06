@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithI18n } from '../../test-utils';
 import userEvent from '@testing-library/user-event';
 import UploadSection from './UploadSection';
@@ -64,6 +64,20 @@ describe('UploadSection', () => {
     expect(mockApi.uploadCSV).not.toHaveBeenCalled();
   });
 
+  it('rejects files that are not CSV before uploading', async () => {
+    renderWithI18n(<UploadSection />, 'en');
+
+    const user = userEvent.setup();
+    fireEvent.change(screen.getByLabelText(/Product catalog \(CSV\)/), {
+      target: { files: [makeFile('datos.txt')] }
+    });
+    await user.click(screen.getByRole('button', { name: /Upload and process CSV/ }));
+
+    expect(screen.getByText(/"datos.txt" is not a CSV file \(extension must be \.csv\)/)).toBeInTheDocument();
+    expect(mockApi.uploadCSV).not.toHaveBeenCalled();
+    expect(mockApi.parseCSV).not.toHaveBeenCalled();
+  });
+
   it('uploads multiple images', async () => {
     mockApi.uploadImages.mockResolvedValue({ success: true });
     renderWithI18n(<UploadSection />, 'en');
@@ -78,6 +92,24 @@ describe('UploadSection', () => {
     expect(mockApi.uploadImages).toHaveBeenCalledTimes(1);
     expect((mockApi.uploadImages.mock.calls[0][0] as File[]).length).toBe(2);
     expect(await screen.findByText('2 image(s) uploaded')).toBeInTheDocument();
+  });
+
+  it('rejects images that are not JPG or JPEG before uploading', async () => {
+    renderWithI18n(<UploadSection />, 'en');
+
+    fireEvent.change(screen.getByLabelText(/Product images/), {
+      target: {
+        files: [
+          new File(['a'], 'a.jpg', { type: 'image/jpeg' }),
+          new File(['b'], 'b.png', { type: 'image/png' })
+        ]
+      }
+    });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Upload images' }));
+
+    expect(screen.getByText(/Only JPG\/JPEG images are allowed \("b.png"\)/)).toBeInTheDocument();
+    expect(mockApi.uploadImages).not.toHaveBeenCalled();
   });
 
   it('selects an image folder', async () => {

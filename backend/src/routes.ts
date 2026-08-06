@@ -39,7 +39,10 @@ const wrap = (fn: AsyncHandler) => (req: Request, res: Response, next: NextFunct
   fn(req, res, next).catch(next);
 };
 
-const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'avif']);
+const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg']);
+
+const CSV_EXTENSION = '.csv';
+const BINARY_SNIFF_LENGTH = 8192;
 
 function getUploadedFile(value: fileUpload.UploadedFile | fileUpload.UploadedFile[] | undefined): fileUpload.UploadedFile {
   const files = Array.isArray(value) ? value : value ? [value] : [];
@@ -48,6 +51,31 @@ function getUploadedFile(value: fileUpload.UploadedFile | fileUpload.UploadedFil
     throw new AppError('Missing multipart file field', 400);
   }
   return file;
+}
+
+function assertCsvFile(file: fileUpload.UploadedFile): void {
+  const ext = path.extname(file.name || '').toLowerCase();
+  if (ext !== CSV_EXTENSION) {
+    throw new AppError(`Only .csv files are allowed (received "${file.name}")`, 400);
+  }
+  if (!file.size || file.size <= 0) {
+    throw new AppError('The CSV file is empty', 400);
+  }
+  if (isBinaryContent(file.data)) {
+    throw new AppError(`The file "${file.name}" does not look like a CSV (binary content detected)`, 400);
+  }
+}
+
+function isBinaryContent(data: Buffer): boolean {
+  const sample = data.subarray(0, BINARY_SNIFF_LENGTH);
+  return sample.includes(0);
+}
+
+function assertImageFile(file: fileUpload.UploadedFile): void {
+  const ext = path.extname(file.name || '').slice(1).toLowerCase();
+  if (!IMAGE_EXTENSIONS.has(ext)) {
+    throw new AppError(`Only .jpg and .jpeg images are allowed (received "${file.name}")`, 400);
+  }
 }
 
 function requireUploadedFile(store: DataStore, fileId: string): UploadedFile {
@@ -205,6 +233,8 @@ export function createApiRouter(deps: RouteDependencies): Router {
     '/upload/csv',
     wrap(async (req, res) => {
       const file = getUploadedFile(req.files?.file);
+      assertCsvFile(file);
+
       const fileId = store.newId('file');
       const dir = path.join(uploadsDir, 'csv');
       await fs.ensureDir(dir);
@@ -236,6 +266,10 @@ export function createApiRouter(deps: RouteDependencies): Router {
       const value = req.files?.files;
       const files = Array.isArray(value) ? value : value ? [value] : [];
       if (files.length === 0) throw new AppError('Missing multipart file field: files', 400);
+
+      for (const file of files) {
+        assertImageFile(file);
+      }
 
       const dir = path.join(uploadsDir, 'images');
       await fs.ensureDir(dir);
@@ -286,8 +320,27 @@ export function createApiRouter(deps: RouteDependencies): Router {
       const uploaded = requireUploadedFile(store, fileId);
       const parser = new CSVParser();
       const csvResult = await parser.parseFile(uploaded.path);
+
+      const supported = new Set(parser.getSupportedFields());
+      const recognized = csvResult.headers.filter((header) => supported.has(header.toLowerCase()));
+      if (recognized.length === 0) {
+        throw new AppError(
+          `The file "${uploaded.originalName}" does not look like a product CSV: no recognized columns (found: ${csvResult.headers.join(', ') || 'none'})`,
+          400
+        );
+      }
+      if (csvResult.rows.length === 0) {
+        throw new AppError(`The file "${uploaded.originalName}" contains no data rows`, 400);
+      }
+
       const normalizer = new ProductNormalizer();
       const products = normalizer.normalizeProducts(csvResult.rows);
+      if (products.length === 0) {
+        throw new AppError(
+          `No products could be extracted from "${uploaded.originalName}": ${csvResult.invalid_rows} of ${csvResult.total_rows} row(s) had errors. Check that the file has the required columns.`,
+          400
+        );
+      }
 
       const dataId = store.newId('data');
       store.datasets.set(dataId, {

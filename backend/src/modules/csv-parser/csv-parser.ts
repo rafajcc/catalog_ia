@@ -48,6 +48,10 @@ export class CSVParser {
     };
   }
 
+  getSupportedFields(): string[] {
+    return Object.keys(this.getDefaultFieldMapping());
+  }
+
   async parseFile(filePath: string): Promise<CSVResult> {
     const startTime = Date.now();
 

@@ -33,6 +33,23 @@ describe('getErrorMessage', () => {
     expect(getErrorMessage(new Error('boom'))).toBe('boom');
   });
 
+  it('returns the server message for axios-style errors', () => {
+    const axiosError = {
+      response: { data: { success: false, error: { message: 'Only .csv files are allowed' } } }
+    };
+    expect(getErrorMessage(axiosError)).toBe('Only .csv files are allowed');
+  });
+
+  it('returns a top-level server message when present', () => {
+    const axiosError = { response: { data: { success: false, message: 'Top level message' } } };
+    expect(getErrorMessage(axiosError)).toBe('Top level message');
+  });
+
+  it('falls back to the axios message when there is no server message', () => {
+    const axiosError = new Error('Request failed with status code 500');
+    expect(getErrorMessage(axiosError)).toBe('Request failed with status code 500');
+  });
+
   it('returns non-empty string errors', () => {
     expect(getErrorMessage('custom failure')).toBe('custom failure');
   });

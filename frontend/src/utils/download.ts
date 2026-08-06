@@ -12,6 +12,14 @@ export function downloadBlob(blob: Blob, filename: string): void {
 }
 
 export function getErrorMessage(error: unknown): string {
+  if (typeof error === 'object' && error !== null) {
+    const response = (error as { response?: { data?: { message?: unknown; error?: { message?: unknown } } } }).response;
+    const data = response?.data;
+    const serverMessage = data?.message ?? data?.error?.message;
+    if (typeof serverMessage === 'string' && serverMessage.length > 0) {
+      return serverMessage;
+    }
+  }
   if (error instanceof Error && error.message) {
     return error.message;
   }

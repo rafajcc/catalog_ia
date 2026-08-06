@@ -118,6 +118,54 @@ describe('API routes', () => {
     expect(res.body.success).toBe(false);
   });
 
+  it('rejects uploads that are not CSV files', async () => {
+    const res = await request(makeApp())
+      .post('/api/upload/csv')
+      .attach('file', Buffer.from('not a csv'), { filename: 'products.txt', contentType: 'text/plain' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.message).toMatch(/only \.csv files/i);
+  });
+
+  it('rejects uploads with binary content even with a .csv name', async () => {
+    const binary = Buffer.concat([Buffer.from([0xff, 0xfe, 0x00]), Buffer.alloc(64, 0)]);
+    const res = await request(makeApp())
+      .post('/api/upload/csv')
+      .attach('file', binary, { filename: 'products.csv', contentType: 'text/csv' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.message).toMatch(/binary content/i);
+  });
+
+  it('rejects CSV processing when the file has no recognized product columns', async () => {
+    const app = makeApp();
+    const upload = await request(app)
+      .post('/api/upload/csv')
+      .attach('file', Buffer.from('foo,bar\n1,2\n3,4'), { filename: 'rubbish.csv', contentType: 'text/csv' });
+    expect(upload.status).toBe(200);
+
+    const res = await request(app).post('/api/process/csv').send({ fileId: upload.body.file_id });
+    expect(res.status).toBe(400);
+    expect(res.body.error.message).toMatch(/no recognized columns/i);
+  });
+
+  it('rejects CSV processing when no products can be extracted', async () => {
+    const app = makeApp();
+    const upload = await request(app)
+      .post('/api/upload/csv')
+      .attach('file', Buffer.from('ean,price\n8412345678901,9.99\n8412345678902,4.50'), {
+        filename: 'noproducts.csv',
+        contentType: 'text/csv'
+      });
+    expect(upload.status).toBe(200);
+
+    const res = await request(app).post('/api/process/csv').send({ fileId: upload.body.file_id });
+    expect(res.status).toBe(400);
+    expect(res.body.error.message).toMatch(/no products could be extracted/i);
+  });
+
   it('validates products and stores the results', async () => {
     const app = makeApp();
     const dataId = await uploadAndParse(app);
@@ -144,7 +192,7 @@ describe('API routes', () => {
     const image = await request(app)
       .post('/api/upload/images')
       .attach('files', Buffer.from('fake-image'), { filename: '8412345678901_main.jpg', contentType: 'image/jpeg' })
-      .attach('files', Buffer.from('fake-image'), { filename: '8412345678902_front.png', contentType: 'image/png' });
+      .attach('files', Buffer.from('fake-image'), { filename: '8412345678902_front.jpeg', contentType: 'image/jpeg' });
 
     expect(image.status).toBe(200);
     expect(image.body.success).toBe(true);
@@ -168,6 +216,7 @@ describe('API routes', () => {
     const folder = path.join(uploadsDir, 'catalog');
     await fs.ensureDir(folder);
     await fs.writeFile(path.join(folder, 'product.jpg'), 'fake');
+    await fs.writeFile(path.join(folder, 'logo.png'), 'fake');
 
     const res = await request(app).post('/api/upload/folder').send({ folderPath: folder });
 
@@ -176,6 +225,16 @@ describe('API routes', () => {
     expect(res.body.message).toContain('1 image(s)');
 
     await fs.remove(folder);
+  });
+
+  it('rejects image uploads that are not JPG or JPEG', async () => {
+    const res = await request(makeApp())
+      .post('/api/upload/images')
+      .attach('files', Buffer.from('fake-image'), { filename: 'product.png', contentType: 'image/png' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.message).toMatch(/only \.jpg and \.jpeg images/i);
   });
 
   it('rejects a missing image folder', async () => {

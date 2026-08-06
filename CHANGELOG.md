@@ -28,9 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - API route integration tests (`test/api-routes.test.ts`, supertest) covering the full upload → parse → validate → match → suggest → sync → review flow plus error cases (18 tests), and a `test:api-routes` npm script.
 - Clarified the image-folder input label in both languages ("…already on the server") in the upload panel.
 - Backend status recovery via a new `useBackendStatus` hook: the dashboard now polls `GET /api/status` periodically (every 5s while offline, every 30s while online, a 60s heartbeat while the tab is hidden, and never overlapping in-flight requests), so the connection chip recovers to "Online"/"En línea" automatically when the backend comes back.
+- Upload validation for product images: only `.jpg` and `.jpeg` files are accepted (backend `assertImageFile` + folder scan, and frontend guards with an `accept=".jpg,.jpeg"` input); the image label now reads "Product images (JPG/JPEG only)" / "Imágenes de producto (solo JPG/JPEG)".
+- The "Configuration" view moved out of the tab navigation into a gear button in the top header (next to status and language selector); the tab bar stays visible while configuration is open so any tab can be selected to return to it.
 
 ### Fixed
 - The frontend `api-service.ts` had an invalid Python-style docstring at the top and imported a non-existent `types` module; both are resolved, methods are typed against the shared API contract, and the service is exposed through a lazy singleton.
+- Uploading a non-CSV file was accepted silently: `POST /api/upload/csv` now rejects files without a `.csv` extension, empty files, and binary content (NUL-byte sniff), and the frontend upload panel refuses non-`.csv` selections before any request is made.
+- A garbage file that passed upload produced a misleading "0 productos": `POST /api/process/csv` now fails with a clear 400 when the file has no recognized product columns, contains no data rows, or yields zero extractable products.
+- Server error messages were never shown in the UI: `getErrorMessage` only read the generic axios message. It now surfaces `error.response.data.message` / `error.response.data.error.message` from the API.
 - PrestaShop client XML responses were never parsed to objects (`xml2json` returns a JSON string), so `resolveProduct`/`resolveStockAvailable` always returned `null` and `createProduct` read undefined ids. The parsed response is now unwrapped and normalized (single/multiple results, `_attributes`/`_cdata`/`_text` extraction).
 - Product image uploads always failed because `formdata-node` rejects raw Buffers; the file buffer is now wrapped in a `Blob`.
 - Image uploads used a hardcoded `/tmp/product_<id>_image_<n>.jpg` placeholder path; they now upload the actual file path from the selected image.

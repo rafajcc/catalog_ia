@@ -27,6 +27,10 @@ export default function UploadSection({ dataId, onDataReady }: UploadSectionProp
       setMessage({ kind: 'error', text: t('upload.errorNoCsv') });
       return;
     }
+    if (!csvFile.name.toLowerCase().endsWith('.csv')) {
+      setMessage({ kind: 'error', text: t('upload.errorNotCsv', { name: csvFile.name }) });
+      return;
+    }
     setBusy(true);
     setMessage(null);
     try {
@@ -49,6 +53,11 @@ export default function UploadSection({ dataId, onDataReady }: UploadSectionProp
   async function handleImageUpload() {
     if (imageFiles.length === 0) {
       setMessage({ kind: 'error', text: t('upload.errorNoImages') });
+      return;
+    }
+    const invalid = imageFiles.find((file) => !/\.jpe?g$/i.test(file.name));
+    if (invalid) {
+      setMessage({ kind: 'error', text: t('upload.errorNotImage', { name: invalid.name }) });
       return;
     }
     setBusy(true);
@@ -109,7 +118,7 @@ export default function UploadSection({ dataId, onDataReady }: UploadSectionProp
         <input
           id="images-input"
           type="file"
-          accept="image/*"
+          accept=".jpg,.jpeg"
           multiple
           disabled={busy}
           onChange={(event) => setImageFiles(Array.from(event.target.files ?? []))}

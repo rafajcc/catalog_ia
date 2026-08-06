@@ -51,6 +51,20 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Data upload')).toBeInTheDocument();
   });
 
+  it('opens the configuration view from the header settings button and keeps the tabs visible', async () => {
+    renderWithI18n(<DashboardPage />, 'en');
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
+
+    expect(screen.getByText('Configuration')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Validation' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Validation' }));
+    expect(screen.queryByText('Configuration')).not.toBeInTheDocument();
+    expect(screen.getByText('Upload a CSV first to enable this step.')).toBeInTheDocument();
+  });
+
   it('blocks data steps until a CSV has been uploaded', async () => {
     renderWithI18n(<DashboardPage />, 'en');
 
