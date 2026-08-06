@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `tax` CSV column is now the PrestaShop tax rules group ID (`tax_rules_group_id`, as configured in each store) instead of a percentage rate; the parser no longer converts it and the sync payload uses the value directly as the tax group ID.
 - Empty `price`, `wholesale_price` and `quantity` cells no longer overwrite existing store values: `syncSingleProduct` only includes those fields in the update payload when they are provided.
 - The CSV format guide intro now states that any field containing a comma must be wrapped in double quotes (applies to all columns), and the column descriptions mention that empty price/wholesale price/stock keep the existing store values.
+- The internal "data id" is no longer shown in the UI: the validation panel now displays the names of the CSV files being validated instead of the id.
+- The AI, sync and review tabs no longer unlock as soon as a CSV is processed; they stay disabled until the uploaded data has been validated (after "Validate products" runs successfully) and re-lock when a new CSV is processed.
 
 ### Added
 - `LICENSE` (MIT) and `CHANGELOG.md` files referenced from the README.
