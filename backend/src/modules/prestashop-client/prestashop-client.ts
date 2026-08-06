@@ -295,7 +295,7 @@ export class PrestaShopClient {
     try {
       // Check if product already exists
       const existingProduct = await this.resolveProduct({
-        reference: product.reference || product.sku
+        reference: product.reference
       });
 
       let result: PrestaShopSyncResult;
@@ -308,7 +308,7 @@ export class PrestaShopClient {
           description: { [this.config.language_id.toString()]: product.description || '' },
           description_short: { [this.config.language_id.toString()]: product.description_short || '' },
           active: true,
-          reference: product.reference || product.sku
+          reference: product.reference
         };
 
         // Only overwrite fields that were provided, so empty cells keep the store values
@@ -333,7 +333,7 @@ export class PrestaShopClient {
           description: { [this.config.language_id.toString()]: product.description || '' },
           description_short: { [this.config.language_id.toString()]: product.description_short || '' },
           active: true,
-          reference: product.reference || product.sku,
+          reference: product.reference,
           ean13: product.ean,
           link_rewrite: this.generateSlug(product.name || '')
         };

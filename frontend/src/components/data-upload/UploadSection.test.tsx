@@ -113,10 +113,10 @@ describe('UploadSection', () => {
           success: false,
           error: {
             message:
-              'The file "preview_20260123_182113.csv" has 7 column(s) but 16 are expected. Download the template to see the expected format.',
+              'The file "preview_20260123_182113.csv" has 7 column(s) but 12 are expected. Download the template to see the expected format.',
             statusCode: 400,
             code: 'CSV_COLUMN_COUNT_MISMATCH',
-            details: { name: 'preview_20260123_182113.csv', columns: 7, expected: 16 }
+            details: { name: 'preview_20260123_182113.csv', columns: 7, expected: 12 }
           }
         }
       }
@@ -130,7 +130,7 @@ describe('UploadSection', () => {
 
     expect(
       await screen.findByText(
-        'El archivo "preview_20260123_182113.csv" tiene 7 columna(s) pero se esperan 16. Descarga la plantilla para ver el formato esperado.'
+        'El archivo "preview_20260123_182113.csv" tiene 7 columna(s) pero se esperan 12. Descarga la plantilla para ver el formato esperado.'
       )
     ).toBeInTheDocument();
   });
@@ -257,10 +257,12 @@ describe('UploadSection', () => {
 
     expect(screen.getByText(/El CSV debe incluir esta cabecera exacta/)).toBeInTheDocument();
     expect(screen.getByText('ean')).toBeInTheDocument();
+    expect(screen.getByText('reference')).toBeInTheDocument();
     expect(screen.getByText('name')).toBeInTheDocument();
-    expect(screen.getByText('Sí')).toBeInTheDocument();
+    expect(screen.getAllByText('Sí')).toHaveLength(3);
     expect(screen.queryByText('stock')).not.toBeInTheDocument();
     expect(screen.queryByText('weight')).not.toBeInTheDocument();
+    expect(screen.queryByText('sku')).not.toBeInTheDocument();
     expect(screen.getByText(/8412345678901,REF-001/)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Ver guía de formato del CSV' }));

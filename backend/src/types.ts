@@ -1,9 +1,9 @@
 // Shared type definitions for CatalogIA
 
 export type ProductField =
-  | 'ean' | 'ean13' | 'reference' | 'sku' | 'name' | 'description'
+  | 'ean' | 'ean13' | 'reference' | 'name' | 'description'
   | 'description_short' | 'price' | 'wholesale_price' | 'quantity'
-  | 'brand' | 'manufacturer' | 'category' | 'tax'
+  | 'brand' | 'category' | 'tax'
   | 'image_hints';
 
 export type Severity = 'error' | 'warning';
@@ -49,7 +49,6 @@ export interface ProductData {
   warnings: string[];
   name: string;
   reference?: string;
-  sku?: string;
   ean?: string;
   ean13?: string;
   description?: string;

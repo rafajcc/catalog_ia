@@ -20,7 +20,6 @@ export function getDefaultProductRules(): ValidationRule[] {
     { field: 'name', type: 'string', max: 128 },
     { field: 'reference', type: 'string', max: 64 },
     { field: 'brand', type: 'string', max: 64 },
-    { field: 'manufacturer', type: 'string', max: 64 },
     { field: 'price', type: 'number', min: 0, decimals: 2 },
     { field: 'wholesale_price', type: 'number', min: 0, decimals: 2 },
     { field: 'quantity', type: 'integer', min: 0 }

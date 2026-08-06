@@ -95,7 +95,7 @@ describe('ProductNormalizer', () => {
   describe('Required field validation', () => {
     it('marks a product missing its name as invalid', () => {
       const product = normalizer().normalizeSingleProduct(
-        makeRow({ ean: '1234567890123', price: 10, quantity: 5 })
+        makeRow({ ean: '1234567890123', reference: 'REF-1', price: 10, quantity: 5 })
       )!;
 
       expect(product.status).toBe('invalid');
@@ -110,17 +110,18 @@ describe('ProductNormalizer', () => {
       expect(product.warnings).toContain('Product missing price - will keep the existing store price');
     });
 
-    it('adds warnings for missing price, stock, and identifiers', () => {
+    it('adds warnings for missing price and stock, and errors for missing identifiers', () => {
       const product = normalizer().normalizeSingleProduct(makeRow({ name: 'A' }))!;
 
       expect(product.warnings).toContain('Product missing price - will keep the existing store price');
       expect(product.warnings).toContain('Product missing stock quantity - will keep the existing store stock');
-      expect(product.warnings).toContain('Product missing EAN and reference - manual matching required');
+      expect(product.validation_errors.some(e => e.field === 'ean' && e.code === 'MISSING_REQUIRED_FIELD')).toBe(true);
+      expect(product.validation_errors.some(e => e.field === 'reference' && e.code === 'MISSING_REQUIRED_FIELD')).toBe(true);
     });
 
     it('leaves a fully populated product as pending', () => {
       const product = normalizer().normalizeSingleProduct(
-        makeRow({ name: 'A', ean: '1234567890123', price: 10, quantity: 5 })
+        makeRow({ name: 'A', ean: '1234567890123', reference: 'REF-1', price: 10, quantity: 5 })
       )!;
 
       expect(product.status).toBe('pending');

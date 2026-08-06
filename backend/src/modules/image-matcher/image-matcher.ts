@@ -18,7 +18,7 @@ export class ImageMatcher {
     this.strategies = config.strategies || ['ean', 'reference', 'filename_pattern', 'manual'];
     this.filenamePatterns = config.filenamePatterns || {
       ean: ['*ean*', '*ean*', '*ean*'],
-      reference: ['*reference*', '*ref*', '*sku*'],
+      reference: ['*reference*', '*ref*'],
       filename_pattern: ['*main*', '*front*', '*1*', '*cover*'],
       manual: []
     };

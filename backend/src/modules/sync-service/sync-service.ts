@@ -131,7 +131,7 @@ export class SyncService {
 
     try {
       const existingProduct = await this.prestashopClient.resolveProduct({
-        reference: product.reference || product.sku,
+        reference: product.reference,
         ean13: product.ean
       });
 
@@ -146,7 +146,7 @@ export class SyncService {
           product_id: existingProduct?.id || this.generateTempId(),
           stock_available_id: '',
           new_quantity: product.quantity,
-          reference: product.reference || product.sku
+          reference: product.reference
         });
       }
 
@@ -188,7 +188,7 @@ export class SyncService {
         operation: this.determineOperation(product),
         status: 'in_progress',
         product_id: product.id,
-        reference: product.reference || product.sku,
+        reference: product.reference,
         prestashop_id: undefined,
         error: undefined,
         retry_count: 0,
@@ -222,7 +222,7 @@ export class SyncService {
         operation: this.determineOperation(product),
         status: 'failed',
         product_id: product.id,
-        reference: product.reference || product.sku,
+        reference: product.reference,
         prestashop_id: undefined,
         error: (error as Error).message,
         retry_count: 0,

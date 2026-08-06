@@ -17,7 +17,6 @@ export class ProductNormalizer {
       ['ean', 'ean'],
       ['ean13', 'ean'],
       ['reference', 'reference'],
-      ['sku', 'reference'],
       ['name', 'name'],
       ['description', 'description'],
       ['description_short', 'description_short'],
@@ -25,7 +24,6 @@ export class ProductNormalizer {
       ['wholesale_price', 'wholesale_price'],
       ['quantity', 'quantity'],
       ['brand', 'brand'],
-      ['manufacturer', 'manufacturer'],
       ['category', 'category'],
       ['tax', 'tax'],
       ['image_hints', 'image_hints']
@@ -110,16 +108,32 @@ export class ProductNormalizer {
       });
     }
 
+    if (!product.ean) {
+      errors.push({
+        field: 'ean',
+        message: 'EAN is required',
+        code: 'MISSING_REQUIRED_FIELD',
+        severity: 'error',
+        value: product.ean
+      });
+    }
+
+    if (!product.reference) {
+      errors.push({
+        field: 'reference',
+        message: 'Product reference is required',
+        code: 'MISSING_REQUIRED_FIELD',
+        severity: 'error',
+        value: product.reference
+      });
+    }
+
     if (!product.price) {
       warnings.push('Product missing price - will keep the existing store price');
     }
 
     if (!product.quantity) {
       warnings.push('Product missing stock quantity - will keep the existing store stock');
-    }
-
-    if (!product.ean && !product.reference) {
-      warnings.push('Product missing EAN and reference - manual matching required');
     }
 
     if (errors.length > 0) {

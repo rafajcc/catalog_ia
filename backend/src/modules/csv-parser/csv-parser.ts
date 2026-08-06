@@ -17,12 +17,10 @@ export const CSV_TEMPLATE_HEADERS = [
   'ean',
   'reference',
   'name',
-  'sku',
   'price',
   'wholesale_price',
   'quantity',
   'brand',
-  'manufacturer',
   'category',
   'tax',
   'description_short',
@@ -48,7 +46,6 @@ export class CSVParser {
       'ean': 'ean',
       'ean13': 'ean',
       'reference': 'reference',
-      'sku': 'sku',
       'name': 'name',
       'description': 'description',
       'description_short': 'description_short',
@@ -56,7 +53,6 @@ export class CSVParser {
       'wholesale_price': 'wholesale_price',
       'quantity': 'quantity',
       'brand': 'brand',
-      'manufacturer': 'manufacturer',
       'category': 'category',
       'tax': 'tax',
       'image_hints': 'image_hints'
@@ -294,13 +290,40 @@ export class CSVParser {
     }
 
     const rawEan = (raw['ean'] || raw['ean13'] || '').trim();
-    if (rawEan && !row.ean) {
+    if (!rawEan) {
+      errors.push({
+        field: 'ean',
+        message: 'EAN is required',
+        code: 'MISSING_REQUIRED_FIELD',
+        severity: 'error',
+        value: row.ean
+      });
+    } else if (!row.ean) {
       errors.push({
         field: 'ean',
         message: 'Invalid EAN format (must be 8 or 13 digits)',
         code: 'INVALID_EAN',
         severity: 'error',
         value: rawEan
+      });
+    }
+
+    const rawReference = (raw['reference'] || '').trim();
+    if (!rawReference) {
+      errors.push({
+        field: 'reference',
+        message: 'Product reference is required',
+        code: 'MISSING_REQUIRED_FIELD',
+        severity: 'error',
+        value: row.reference
+      });
+    } else if (rawReference.length > 64) {
+      errors.push({
+        field: 'reference',
+        message: 'Reference must be at most 64 characters',
+        code: 'INVALID_REFERENCE',
+        severity: 'error',
+        value: rawReference
       });
     }
 

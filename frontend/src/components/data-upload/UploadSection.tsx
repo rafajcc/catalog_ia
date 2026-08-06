@@ -10,15 +10,13 @@ interface Message {
 }
 
 const CSV_GUIDE_COLUMNS: Array<{ key: string; required: boolean }> = [
-  { key: 'ean', required: false },
-  { key: 'reference', required: false },
+  { key: 'ean', required: true },
+  { key: 'reference', required: true },
   { key: 'name', required: true },
-  { key: 'sku', required: false },
   { key: 'price', required: false },
   { key: 'wholesale_price', required: false },
   { key: 'quantity', required: false },
   { key: 'brand', required: false },
-  { key: 'manufacturer', required: false },
   { key: 'category', required: false },
   { key: 'tax', required: false },
   { key: 'description_short', required: false },
@@ -27,7 +25,7 @@ const CSV_GUIDE_COLUMNS: Array<{ key: string; required: boolean }> = [
 ];
 
 const CSV_GUIDE_EXAMPLE =
-  '8412345678901,REF-001,Laptop Pro,LP15-001,999.99,899.99,50,Dell,Dell Inc.,Electronics,1,Desc corta,"Descripción larga con comas",EAN-8412345678901';
+  '8412345678901,REF-001,Laptop Pro,999.99,899.99,50,Dell,Electronics,1,Desc corta,"Descripción del producto con comas",EAN-8412345678901';
 
 interface UploadSectionProps {
   onDataReady?: (dataId: string) => void;

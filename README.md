@@ -379,8 +379,8 @@ docs/                       # Reserved for documentation (currently empty)
 
 ### CSV Field Mapping
 The application supports flexible CSV column mapping:
-- `ean` / `ean13` - Product EAN/ISBN
-- `reference` / `sku` - Product reference/SKU
+- `ean` / `ean13` - Product EAN/ISBN (required)
+- `reference` - Product reference (required)
 - `name` - Product name
 - `description_short` - Short description
 - `description` - Full description
@@ -388,7 +388,6 @@ The application supports flexible CSV column mapping:
 - `wholesale_price` - Wholesale price (leave empty to keep the store value)
 - `quantity` - Stock quantity (leave empty to keep the store stock)
 - `brand` - Brand name
-- `manufacturer` - Manufacturer
 - `category` - Product category
 - `tax` - PrestaShop tax rules group ID (as configured in the store)
 - `image_hints` - Image file naming hints

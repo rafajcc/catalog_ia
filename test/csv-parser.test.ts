@@ -68,10 +68,10 @@ describe('CSVParser', () => {
 
     it('normalizes prices with currency symbols', async () => {
       const result = await parseLines([
-        'name,price,description',
-        'Product A,$29.99,Description A',
-        'Product B,€19.50,Description B',
-        'Product C,¥15.00,Description C'
+        'ean,reference,name,price,description',
+        '1234567890123,REF-001,Product A,$29.99,Description A',
+        '1234567890124,REF-002,Product B,€19.50,Description B',
+        '1234567890125,REF-003,Product C,¥15.00,Description C'
       ]);
 
       expect(result.total_rows).toBe(3);
@@ -81,10 +81,10 @@ describe('CSVParser', () => {
 
     it('rejects prices with more than two decimals instead of rounding them', async () => {
       const result = await parseLines([
-        'ean,name,price,wholesale_price,quantity',
-        '1234567890123,Product A,19.999,15.00,10',
-        '1234567890124,Product B,20.00,14.555,10',
-        '1234567890125,Product C,20.00,14.55,10'
+        'ean,reference,name,price,wholesale_price,quantity',
+        '1234567890123,REF-001,Product A,19.999,15.00,10',
+        '1234567890124,REF-002,Product B,20.00,14.555,10',
+        '1234567890125,REF-003,Product C,20.00,14.55,10'
       ]);
 
       expect(result.valid_rows).toBe(1);
@@ -93,14 +93,50 @@ describe('CSVParser', () => {
 
     it('rejects non-integer quantities instead of truncating them', async () => {
       const result = await parseLines([
-        'ean,name,quantity',
-        '1234567890123,Product A,10.7',
-        '1234567890124,Product B,abc',
-        '1234567890125,Product C,10'
+        'ean,reference,name,quantity',
+        '1234567890123,REF-001,Product A,10.7',
+        '1234567890124,REF-002,Product B,abc',
+        '1234567890125,REF-003,Product C,10'
       ]);
 
       expect(result.valid_rows).toBe(1);
       expect(result.invalid_rows).toBe(2);
+    });
+
+    it('rejects a row without an EAN as a missing required field', async () => {
+      const result = await parseLines([
+        'ean,reference,name,price',
+        ',REF-001,Product A,10.00',
+        '1234567890123,REF-002,Product B,10.00'
+      ]);
+
+      expect(result.valid_rows).toBe(1);
+      expect(result.invalid_rows).toBe(1);
+      expect(result.rows[0].errors.some(e => e.field === 'ean' && e.code === 'MISSING_REQUIRED_FIELD')).toBe(true);
+    });
+
+    it('rejects a row without a reference as a missing required field', async () => {
+      const result = await parseLines([
+        'ean,reference,name,price',
+        '1234567890123,,Product A,10.00',
+        '1234567890124,REF-002,Product B,10.00'
+      ]);
+
+      expect(result.valid_rows).toBe(1);
+      expect(result.invalid_rows).toBe(1);
+      expect(result.rows[0].errors.some(e => e.field === 'reference' && e.code === 'MISSING_REQUIRED_FIELD')).toBe(true);
+    });
+
+    it('rejects a reference longer than 64 characters', async () => {
+      const result = await parseLines([
+        'ean,reference,name,price',
+        `1234567890123,${'R'.repeat(65)},Product A,10.00`,
+        '1234567890124,REF-002,Product B,10.00'
+      ]);
+
+      expect(result.valid_rows).toBe(1);
+      expect(result.invalid_rows).toBe(1);
+      expect(result.rows[0].errors.some(e => e.field === 'reference' && e.code === 'INVALID_REFERENCE')).toBe(true);
     });
   });
 
@@ -115,6 +151,19 @@ describe('CSVParser', () => {
       expect(result.total_rows).toBe(2);
       expect(result.valid_rows).toBe(1);
       expect(result.invalid_rows).toBe(1);
+    });
+
+    it('flags rows that repeat the same reference', async () => {
+      const result = await parseLines([
+        'ean,name,reference',
+        '1234567890123,Product A,REF-001',
+        '1234567890124,Product B,REF-001'
+      ]);
+
+      expect(result.total_rows).toBe(2);
+      expect(result.valid_rows).toBe(1);
+      expect(result.invalid_rows).toBe(1);
+      expect(result.rows[1].errors.some(e => e.code === 'DUPLICATE_VALUE' && e.field === 'reference')).toBe(true);
     });
   });
 });
