@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ValidationRule` supports a `decimals` constraint and `number`/`integer` rule types are enforced distinctly (`Number.isInteger` for integers, decimal-place count for numbers).
 - CSV parser tests, normalizer tests, validator tests, API route tests and upload tab tests updated/added for the new strict rules.
 - The "Synchronization" tab now comes after "Review" in the tab order, and it stays disabled until the user explicitly marks the review as completed with the new "Mark review as completed" button in the review panel. Re-uploading, deleting or re-processing a CSV re-locks it; "Review" itself unlocks once the data is validated, like the AI tab.
-- The PrestaShop version field in the configuration form is now a dropdown (`1.6`, `1.7`, `8`) instead of a free text input.
+- The PrestaShop version field in the configuration form is now a dropdown (`1.7`, `8`, `9`) instead of a free text input.
 - The configuration is now persisted to a JSON file instead of only living in memory. `PUT /api/config` writes the file and the backend loads it on startup, so saved settings survive restarts. Sensitive values (the PrestaShop and AI API keys) are encrypted at rest with AES-256-GCM: the encryption key comes from the `CONFIG_SECRET` environment variable, or a random key file (`config.json.key`) is generated next to the config file with `0600` permissions. The file location defaults to `config.json` in the working directory and can be overridden with `CONFIG_FILE`. Both `config.json` and `config.json.key` are gitignored.
 
 ### Added

@@ -16,7 +16,7 @@ const AI_PROVIDERS: Array<{ value: AIProviderName; label: string }> = [
   { value: 'openrouter', label: 'OpenRouter' }
 ];
 
-const PRESTASHOP_VERSIONS = ['1.6', '1.7', '8'];
+const PRESTASHOP_VERSIONS = ['1.7', '8', '9'];
 
 export default function ConfigurationForm() {
   const api = getApiService();
