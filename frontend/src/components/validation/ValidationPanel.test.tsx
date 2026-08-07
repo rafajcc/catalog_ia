@@ -13,11 +13,15 @@ const products = [
   {
     id: 'p1',
     name: 'Alpha',
+    ean: '8412345678901',
+    reference: 'REF-ALPHA',
     validation_errors: []
   },
   {
     id: 'p2',
     name: 'Beta',
+    ean: '8412345678902',
+    reference: 'REF-BETA',
     validation_errors: [{ field: 'name', message: 'missing', code: 'REQUIRED', severity: 'error' }]
   }
 ];
@@ -43,6 +47,12 @@ describe('ValidationPanel', () => {
     expect(screen.getByText('1 with errors')).toBeInTheDocument();
     expect(screen.getByText('Alpha')).toBeInTheDocument();
     expect(screen.getByText('Beta')).toBeInTheDocument();
+    expect(screen.getByText('8412345678901')).toBeInTheDocument();
+    expect(screen.getByText('REF-ALPHA')).toBeInTheDocument();
+    expect(screen.getByText('8412345678902')).toBeInTheDocument();
+    expect(screen.getByText('REF-BETA')).toBeInTheDocument();
+    expect(screen.getByText('EAN')).toBeInTheDocument();
+    expect(screen.getByText('Reference')).toBeInTheDocument();
     expect(screen.getByText(/Validation finished \(2 products\)/)).toBeInTheDocument();
   });
 

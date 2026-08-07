@@ -95,6 +95,8 @@ export default function ValidationPanel({ dataId, csvFiles = [], autoLoad = fals
             <thead>
               <tr>
                 <th>{t('validation.name')}</th>
+                <th>{t('validation.ean')}</th>
+                <th>{t('validation.reference')}</th>
                 <th>{t('validation.errors')}</th>
               </tr>
             </thead>
@@ -102,6 +104,8 @@ export default function ValidationPanel({ dataId, csvFiles = [], autoLoad = fals
               {products.slice(0, 10).map((product) => (
                 <tr key={product.id}>
                   <td>{product.name}</td>
+                  <td>{product.ean}</td>
+                  <td>{product.reference}</td>
                   <td>{(product.validation_errors ?? []).length}</td>
                 </tr>
               ))}
