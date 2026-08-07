@@ -165,66 +165,6 @@ export interface AIResponse {
   warnings: string[];
 }
 
-export type SyncOperation =
-  | 'create_product' | 'update_product' | 'update_stock'
-  | 'upload_image' | 'sync_single_product';
-
-export type SyncStatus = 'in_progress' | 'completed' | 'failed';
-
-export interface SyncConfig {
-  batch_size: number;
-}
-
-export interface StockUpdate {
-  product_id: string;
-  stock_available_id: string;
-  new_quantity: number;
-  reference?: string;
-}
-
-export interface ImageUpload {
-  product_id: string;
-  image_file: ImageFile;
-}
-
-export interface TextUpdate {
-  product_id: string;
-  field: string;
-  new_value: string;
-  original_value: string;
-}
-
-export interface SyncPlan {
-  products_to_create: ProductData[];
-  products_to_update: ProductData[];
-  stock_updates: StockUpdate[];
-  images_to_upload: ImageUpload[];
-  texts_to_update: TextUpdate[];
-}
-
-export interface SyncResult {
-  operation: SyncOperation;
-  status: SyncStatus;
-  product_id: string;
-  reference?: string;
-  prestashop_id?: string;
-  error?: string;
-  retry_count: number;
-  executed_at?: Date;
-  response_data?: any;
-}
-
-export interface SyncSession {
-  id: string;
-  config: SyncConfig;
-  plan: SyncPlan;
-  status: 'pending' | 'in_progress' | 'completed' | 'failed';
-  started_at: Date;
-  completed_at?: Date;
-  dry_run: boolean;
-  results?: SyncResult[];
-}
-
 export type ProductId = string;
 export type EAN = string;
 export type Reference = string;
@@ -259,6 +199,84 @@ export interface PrestaShopStockAvailable {
   reference?: Reference;
 }
 
+// One CSV row is one product combination in PrestaShop. Resolving a row means
+// matching its EAN to a `ps_product_attribute` (id_product_attribute) and, from
+// there, to its parent product (id_product).
+export interface PrestaShopCombinationInfo {
+  id_product_attribute: string;
+  id_product: string;
+  reference?: string;
+  ean13?: string;
+  price?: number;
+  wholesale_price?: number;
+  stock_available_id?: string;
+  quantity?: number;
+}
+
+// Product-level data fetched from PrestaShop (shared by all combinations of the
+// same id_product).
+export interface PrestaShopProductInfo {
+  id: string;
+  reference?: string;
+  ean13?: string;
+  name?: string;
+  description?: string;
+  description_short?: string;
+  tax_rules_group_id?: number;
+  price?: number;
+  wholesale_price?: number;
+  manufacturer_id?: string;
+  categories?: string[];
+}
+
+// Outcome of resolving a CSV row against PrestaShop.
+export interface RowResolution {
+  row_id: string;
+  row: ProductData;
+  id_product?: string;
+  combination?: PrestaShopCombinationInfo;
+  product?: PrestaShopProductInfo;
+  error?: string;
+}
+
+export interface ConsistencyIssueValue {
+  row_id: string;
+  value: string;
+}
+
+// Product-level field with different filled values across combinations of the
+// same id_product.
+export interface ConsistencyIssue {
+  field: string;
+  id_product: string;
+  values: ConsistencyIssueValue[];
+  message: string;
+}
+
+export interface ConsistencyResult {
+  resolutions: RowResolution[];
+  issues: ConsistencyIssue[];
+  not_found_count: number;
+  checked: boolean;
+  message?: string;
+}
+
+export interface CombinationSyncResult {
+  row_id: string;
+  operation: string;
+  status: 'completed' | 'failed' | 'skipped';
+  error?: string;
+}
+
+export interface UploadChangesResult {
+  products_updated: number;
+  combinations_updated: number;
+  stock_updated: number;
+  manufacturers_created: number;
+  categories_created: number;
+  results: CombinationSyncResult[];
+}
+
 export interface PrestaShopImageUpload {
   id_product: ProductId;
   position?: number;
@@ -281,8 +299,12 @@ export interface PrestaShopAPIEndpoints {
   root: string;
   products: string;
   product: (id: ProductId) => string;
+  combinations: string;
+  combination: (id: string) => string;
   stock_availables: string;
   stock_available: (id: string) => string;
+  manufacturers: string;
+  categories: string;
   images: string;
   product_images: (productId: ProductId) => string;
   images_upload: (productId: ProductId) => string;

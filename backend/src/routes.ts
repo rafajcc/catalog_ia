@@ -14,18 +14,19 @@ import { ImageMatcher } from './modules/image-matcher/image-matcher';
 import { ImageRanker } from './modules/image-ranker/image-ranker';
 import { AITextSuggester } from './modules/ai-text-suggester/ai-text-suggester';
 import { ReviewStateManager } from './modules/review-state/review-state';
-import { SyncService } from './modules/sync-service/sync-service';
+import { ConsistencyValidator } from './modules/consistency-validator/consistency-validator';
+import { CombinationSync } from './modules/combination-sync/combination-sync';
 import { PrestaShopClient } from './modules/prestashop-client/prestashop-client';
 import { ConfigPersistence } from './modules/config-persistence/config-persistence';
 import {
   AIConfig,
   AIResponse,
   BatchAction,
+  ConsistencyResult,
   ImageFile,
   ImageMatchResult,
   PrestaShopConfig,
-  ProductData,
-  SyncSession
+  ProductData
 } from './types';
 
 export interface RouteDependencies {
@@ -132,14 +133,6 @@ function requireDataset(store: DataStore, dataId: string): DataSet {
   return dataset;
 }
 
-function requireSession(store: DataStore, sessionId: string): SyncSession {
-  const session = store.syncSessions.get(sessionId);
-  if (!session) {
-    throw new AppError(`Sync session ${sessionId} not found`, 404);
-  }
-  return session;
-}
-
 function requireReviewManager(store: DataStore, dataId: string): ReviewStateManager {
   const dataset = requireDataset(store, dataId);
   let manager = store.reviewManagers.get(dataId);
@@ -163,14 +156,8 @@ function buildPrestashopClient(deps: RouteDependencies, config: PrestaShopConfig
   return deps.prestashopClientFactory ? deps.prestashopClientFactory(config) : new PrestaShopClient(config);
 }
 
-function createSyncService(config: DataStore['config'], batchSize: number): SyncService {
-  const prestashopClient = new PrestaShopClient(config.prestashop);
-  const aiSuggester = new AITextSuggester(config.ai);
-  const imageMatcher = new ImageMatcher({ strategies: ['ean', 'reference', 'filename_pattern'] });
-  const imageRanker = new ImageRanker({
-    max_images_per_product: config.image_matcher.max_images_per_product ?? 5
-  });
-  return new SyncService(prestashopClient, aiSuggester, imageMatcher, imageRanker, { batch_size: batchSize });
+function hasPrestashopConfig(config: PrestaShopConfig): boolean {
+  return Boolean(config.base_url && config.api_key);
 }
 
 async function scanImageFolder(folderPath: string): Promise<ImageFile[]> {
@@ -394,6 +381,8 @@ export function createApiRouter(deps: RouteDependencies): Router {
 
       store.uploads.delete(req.params.fileId);
       store.datasets.delete(req.params.fileId);
+      store.validationResults.clear();
+      store.consistencyResults.clear();
       await fs.remove(uploaded.path);
       res.json({ success: true, message: 'CSV file removed' });
     })
@@ -422,6 +411,7 @@ export function createApiRouter(deps: RouteDependencies): Router {
       store.uploads.clear();
       store.datasets.clear();
       store.validationResults.clear();
+      store.consistencyResults.clear();
       store.matchingResults.clear();
       store.aiSuggestions.clear();
       res.json({ success: true, message: 'All CSV files removed' });
@@ -506,7 +496,7 @@ export function createApiRouter(deps: RouteDependencies): Router {
       const baseRequired = ['name', 'ean', 'reference'];
       const configured = store.config.validation.required_fields || [];
       const requiredFields = Array.from(new Set([...baseRequired, ...configured]));
-      // Data validation (required fields, formats, duplicates) runs here over the
+      // Local data validation (required fields, formats, duplicates) runs over the
       // merged dataset from every uploaded CSV, so duplicates are detected across
       // files, not just within a single file.
       const validator = new ProductValidator(getDefaultProductRules(), requiredFields, ['ean', 'reference']);
@@ -519,19 +509,98 @@ export function createApiRouter(deps: RouteDependencies): Router {
         return product;
       });
 
+      // Consistency check against PrestaShop: resolve each row's EAN to its
+      // combination/product (batched requests) and detect inconsistent
+      // product-level fields across combinations of the same id_product.
+      const prestashop = store.config.prestashop;
+      let consistency: ConsistencyResult = {
+        resolutions: [],
+        issues: [],
+        not_found_count: 0,
+        checked: false,
+        message: 'PrestaShop is not configured. Consistency check skipped.'
+      };
+
+      if (hasPrestashopConfig(prestashop)) {
+        const client = buildPrestashopClient(deps, prestashop);
+        const consistencyValidator = new ConsistencyValidator(client, prestashop.language_id ?? 1);
+        consistency = await consistencyValidator.validate(dataset.products);
+
+        for (const issue of consistency.issues) {
+          for (const value of issue.values) {
+            const product = products.find((p) => p.id === value.row_id);
+            if (!product) continue;
+            product.validation_errors.push({
+              field: issue.field,
+              message: issue.message,
+              code: 'PRODUCT_LEVEL_INCONSISTENCY',
+              severity: 'error',
+              value: value.value
+            });
+            product.status = 'invalid';
+          }
+        }
+
+        for (const resolution of consistency.resolutions) {
+          if (!resolution.error) continue;
+          const product = products.find((p) => p.id === resolution.row_id);
+          if (!product) continue;
+          product.validation_errors.push({
+            field: 'ean',
+            message: resolution.error,
+            code: 'EAN_NOT_FOUND',
+            severity: 'error',
+            value: resolution.row.ean
+          });
+          product.status = 'invalid';
+        }
+      }
+
       store.validationResults.set(req.params.dataId, { products });
+      store.consistencyResults.set(req.params.dataId, consistency);
       res.json({
         success: true,
         message: 'Products validated',
-        data: { products, summary: { total: products.length } }
+        data: { products, summary: { total: products.length }, consistency }
       });
+    })
+  );
+
+  // Uploads the (edited) validated rows back to PrestaShop. Only fields that are
+  // filled in the CSV and differ from the current store value are updated; empty
+  // cells never overwrite existing values.
+  router.post(
+    '/validate/upload/:dataId',
+    wrap(async (req, res) => {
+      const dataset = requireDataset(store, req.params.dataId);
+      const prestashop = store.config.prestashop;
+      if (!hasPrestashopConfig(prestashop)) {
+        throw new AppError('PrestaShop must be configured to upload changes', 400);
+      }
+
+      const consistency = store.consistencyResults.get(req.params.dataId);
+      if (!consistency || !consistency.checked) {
+        throw new AppError('Run "Validate products" first so the data can be matched to PrestaShop', 400);
+      }
+
+      const body = req.body ?? {};
+      const editedRows = Array.isArray(body.rows) ? body.rows : dataset.products;
+
+      const client = buildPrestashopClient(deps, prestashop);
+      const sync = new CombinationSync(client, prestashop.language_id ?? 1);
+      const result = await sync.upload(consistency.resolutions, editedRows);
+
+      res.json({ success: true, message: 'Changes uploaded to PrestaShop', data: result });
     })
   );
 
   router.get('/validate/results/:dataId', (req, res) => {
     const stored = store.validationResults.get(req.params.dataId);
     if (!stored) throw new AppError('Validation results not found', 404);
-    res.json({ success: true, data: { products: stored.products } });
+    res.json({
+      success: true,
+      data: { products: stored.products, consistency: store.consistencyResults.get(req.params.dataId) ?? null }
+    });
   });
 
   // Image matching
@@ -589,66 +658,6 @@ export function createApiRouter(deps: RouteDependencies): Router {
   router.get('/ai/suggestions/:dataId', (req, res) => {
     const stored = store.aiSuggestions.get(req.params.dataId);
     res.json({ success: true, data: stored ?? [] });
-  });
-
-  // Synchronization
-  router.post(
-    '/sync/session/:dataId',
-    wrap(async (req, res) => {
-      const dataset = requireDataset(store, req.params.dataId);
-      const batchSize = Math.max(1, Number(req.body?.batch_size) || 10);
-
-      const syncService = createSyncService(store.config, batchSize);
-      const session = await syncService.createSyncSession(dataset.products, true);
-      store.syncSessions.set(session.id, session);
-
-      res.json({ success: true, message: 'Sync session created', session, session_id: session.id });
-    })
-  );
-
-  router.get('/sync/session/:sessionId', (req, res) => {
-    const session = requireSession(store, req.params.sessionId);
-    res.json({ success: true, session, session_id: session.id });
-  });
-
-  router.post(
-    '/sync/start/:sessionId',
-    wrap(async (req, res) => {
-      const session = requireSession(store, req.params.sessionId);
-      const syncService = createSyncService(store.config, session.config.batch_size);
-      await syncService.executeSyncSession(session);
-      store.syncSessions.set(session.id, session);
-      res.json({ success: true, message: 'Sync started', data: session.results ?? [] });
-    })
-  );
-
-  router.post('/sync/cancel/:sessionId', (req, res) => {
-    const session = requireSession(store, req.params.sessionId);
-    session.status = 'failed';
-    res.json({ success: true, message: 'Sync session cancelled', data: [] });
-  });
-
-  router.get('/sync/results/:sessionId', (req, res) => {
-    const session = requireSession(store, req.params.sessionId);
-    res.json({ success: true, data: session.results ?? [] });
-  });
-
-  router.get('/sync/export/:sessionId/:format', (req, res) => {
-    const session = requireSession(store, req.params.sessionId);
-    const format = req.params.format || 'json';
-
-    if (format === 'csv') {
-      const header = 'operation,status,product_id,reference,error\n';
-      const rows = (session.results ?? [])
-        .map((r) => `${r.operation},${r.status},${r.product_id},${r.reference || ''},"${r.error || ''}"`)
-        .join('\n');
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', `attachment; filename=sync_${session.id}.csv`);
-      res.send(header + rows);
-      return;
-    }
-
-    res.json({ success: true, session_id: session.id, results: session.results ?? [] });
   });
 
   // Review

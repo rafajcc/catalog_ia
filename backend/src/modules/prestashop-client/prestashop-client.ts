@@ -15,6 +15,8 @@ import {
   PrestaShopImageUpload,
   PrestaShopSyncResult,
   PrestaShopAPIEndpoints,
+  PrestaShopCombinationInfo,
+  PrestaShopProductInfo,
   ProductData,
   ProductId,
   Reference
@@ -53,8 +55,12 @@ export class PrestaShopClient {
       root: base,
       products: `${base}/products`,
       product: (id: ProductId) => `${base}/products/${id}`,
+      combinations: `${base}/combinations`,
+      combination: (id: string) => `${base}/combinations/${id}`,
       stock_availables: `${base}/stock_availables`,
       stock_available: (id: string) => `${base}/stock_availables/${id}`,
+      manufacturers: `${base}/manufacturers`,
+      categories: `${base}/categories`,
       images: `${base}/images`,
       product_images: (productId: ProductId) => `${base}/images/products/${productId}`,
       images_upload: (productId: ProductId) => `${base}/images/products/${productId}`
@@ -141,6 +147,229 @@ export class PrestaShopClient {
     } catch (error) {
       logger.error('Failed to resolve stock available', { productId, reference, error });
       return null; // Don't fail the whole process for stock lookup failures
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Batch resolution
+  // -------------------------------------------------------------------------
+  // The Webservice supports OR filters (`[value1|value2|...]`) and `display=full`,
+  // so many combinations/products can be fetched in a few requests instead of one
+  // per EAN. Values are chunked to keep the request URL within safe limits.
+
+  private readonly BATCH_SIZE = 100;
+
+  private chunk<T>(items: T[], size: number): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < items.length; i += size) {
+      chunks.push(items.slice(i, i + size));
+    }
+    return chunks;
+  }
+
+  private async getResourceList(path: string, params: Record<string, any>): Promise<any> {
+    const response = await this.client.get(path, { params });
+    return this.parseXmlResponse(response.data)?.prestashop;
+  }
+
+  // Fetches the combinations matching any of the given EANs, resolving the
+  // mapping EAN -> id_product_attribute -> id_product in a few batch requests.
+  async fetchCombinationsByEan(eans: string[]): Promise<PrestaShopCombinationInfo[]> {
+    const unique = Array.from(new Set(eans.map((ean) => ean.replace(/[^0-9]/g, '')).filter(Boolean)));
+    const results: PrestaShopCombinationInfo[] = [];
+
+    for (const batch of this.chunk(unique, this.BATCH_SIZE)) {
+      const root = await this.getResourceList(this.endpoints.combinations, {
+        'filter[ean13]': `[${batch.join('|')}]`,
+        display: 'full',
+        limit: 1000
+      });
+      const nodes = this.toArray(root?.combinations?.combination);
+      results.push(...nodes.map((node) => this.extractCombination(node)));
+    }
+
+    return results;
+  }
+
+  // Fetches product-level data for the given product ids.
+  async fetchProductsById(ids: string[]): Promise<PrestaShopProductInfo[]> {
+    const unique = Array.from(new Set(ids.filter(Boolean)));
+    const results: PrestaShopProductInfo[] = [];
+
+    for (const batch of this.chunk(unique, this.BATCH_SIZE)) {
+      const root = await this.getResourceList(this.endpoints.products, {
+        'filter[id]': `[${batch.join('|')}]`,
+        display: 'full',
+        limit: 1000
+      });
+      const nodes = this.toArray(root?.products?.product);
+      results.push(...nodes.map((node) => this.extractProductInfo(node)));
+    }
+
+    return results;
+  }
+
+  // Fetches stock quantities for the given stock_available ids.
+  async fetchStockByIds(ids: string[]): Promise<Array<{ id: string; quantity?: number }>> {
+    const unique = Array.from(new Set(ids.filter(Boolean)));
+    const results: Array<{ id: string; quantity?: number }> = [];
+
+    for (const batch of this.chunk(unique, this.BATCH_SIZE)) {
+      const root = await this.getResourceList(this.endpoints.stock_availables, {
+        'filter[id]': `[${batch.join('|')}]`,
+        display: 'full',
+        limit: 1000
+      });
+      const nodes = this.toArray(root?.stock_availables?.stock_available);
+      const entries: Array<{ id?: string; quantity?: number }> = nodes.map((node) => {
+        const stock = this.extractStockAvailable(node);
+        return { id: stock.id, quantity: stock.quantity };
+      });
+      results.push(...entries.filter((entry) => !!entry.id).map((entry) => ({ id: entry.id as string, quantity: entry.quantity })));
+    }
+
+    return results;
+  }
+
+  async updateCombination(id: string, update: Partial<PrestaShopCombinationInfo>): Promise<PrestaShopSyncResult> {
+    try {
+      const xmlData = this.toUpdateXml('combination', this.combinationToXml(update));
+      await this.client.patch(this.endpoints.combination(id), xmlData);
+
+      logger.info('Combination updated successfully', { combinationId: id });
+
+      return {
+        success: true,
+        operation: 'update_combination',
+        errors: [],
+        warnings: [],
+        timestamp: new Date()
+      };
+    } catch (error) {
+      logger.error('Failed to update combination', { combinationId: id, error });
+      return {
+        success: false,
+        operation: 'update_combination',
+        errors: [(error as Error).message],
+        warnings: [],
+        timestamp: new Date()
+      };
+    }
+  }
+
+  // Updates product-level fields (name, descriptions, tax, manufacturer,
+  // categories). Uses the `<prestashop><product>...</product></prestashop>`
+  // envelope required by the Webservice.
+  async updateProductFields(id: string, update: Partial<PrestaShopProduct>): Promise<PrestaShopSyncResult> {
+    try {
+      const xmlData = this.toUpdateXml('product', update);
+      await this.client.patch(this.endpoints.product(id), xmlData);
+
+      logger.info('Product fields updated successfully', {
+        productId: id,
+        fields: Object.keys(update)
+      });
+
+      return {
+        success: true,
+        operation: 'update_product',
+        product_id: id,
+        errors: [],
+        warnings: [],
+        timestamp: new Date()
+      };
+    } catch (error) {
+      logger.error('Failed to update product fields', { productId: id, error });
+      return {
+        success: false,
+        operation: 'update_product',
+        product_id: id,
+        errors: [(error as Error).message],
+        warnings: [],
+        timestamp: new Date()
+      };
+    }
+  }
+
+  // Resolves a brand name to its manufacturer id (matching any language,
+  // case-insensitively), or null when it does not exist.
+  async resolveManufacturer(name: string): Promise<string | null> {
+    const normalized = name.trim().toLowerCase();
+    if (!normalized) return null;
+
+    const root = await this.getResourceList(this.endpoints.manufacturers, {
+      display: 'full',
+      limit: 1000
+    });
+    const nodes = this.toArray(root?.manufacturers?.manufacturer);
+
+    for (const node of nodes) {
+      const nodeName = this.extractLocalized(node?.name, this.config.language_id);
+      if (nodeName && nodeName.trim().toLowerCase() === normalized) {
+        return node?._attributes?.id as string | undefined ?? null;
+      }
+    }
+
+    return null;
+  }
+
+  async createManufacturer(name: string): Promise<string | null> {
+    try {
+      const xmlData = this.toEnvelopeXml('manufacturer', {
+        name: { _cdata: name },
+        active: 1
+      });
+      const response = await this.client.post(this.endpoints.manufacturers, xmlData);
+      const created = this.parseXmlResponse(response.data)?.prestashop?.manufacturer;
+      const id = created?._attributes?.id as string | undefined;
+      logger.info('Manufacturer created', { name, manufacturerId: id });
+      return id ?? null;
+    } catch (error) {
+      logger.error('Failed to create manufacturer', { name, error });
+      return null;
+    }
+  }
+
+  // Resolves a category name to its category id (matching any language,
+  // case-insensitively), or null when it does not exist.
+  async resolveCategoryByName(name: string): Promise<string | null> {
+    const normalized = name.trim().toLowerCase();
+    if (!normalized) return null;
+
+    const root = await this.getResourceList(this.endpoints.categories, {
+      'filter[name]': `[${name.trim()}]`,
+      display: 'full',
+      limit: 1000
+    });
+    const nodes = this.toArray(root?.categories?.category);
+
+    for (const node of nodes) {
+      const nodeName = this.extractLocalized(node?.name, this.config.language_id);
+      if (nodeName && nodeName.trim().toLowerCase() === normalized) {
+        return node?._attributes?.id as string | undefined ?? null;
+      }
+    }
+
+    return null;
+  }
+
+  // Creates a category under a default parent (the Home/root category is id 2
+  // in a default PrestaShop install).
+  async createCategory(name: string, parentId = 2): Promise<string | null> {
+    try {
+      const xmlData = this.toEnvelopeXml('category', {
+        id_parent: parentId,
+        active: 1,
+        name: this.localizedField(name)
+      });
+      const response = await this.client.post(this.endpoints.categories, xmlData);
+      const created = this.parseXmlResponse(response.data)?.prestashop?.category;
+      const id = created?._attributes?.id as string | undefined;
+      logger.info('Category created', { name, categoryId: id });
+      return id ?? null;
+    } catch (error) {
+      logger.error('Failed to create category', { name, error });
+      return null;
     }
   }
 
@@ -439,12 +668,87 @@ export class PrestaShopClient {
     return value?._cdata ?? value?._text;
   }
 
+  private toNumber(value: string | undefined): number | undefined {
+    if (value === undefined || value === null || value === '') return undefined;
+    const number = parseFloat(value);
+    return isNaN(number) ? undefined : number;
+  }
+
+  // PrestaShop keeps localized fields as `<name><language id="N">...</language></name>`.
+  // Picks the configured language, falling back to the first available one.
+  private extractLocalized(node: any, languageId: number): string | undefined {
+    if (!node) return undefined;
+    const languages = this.toArray(node.language);
+    const found = languages.find((language) => Number(language?._attributes?.id) === languageId);
+    return this.extractText(found ?? languages[0]);
+  }
+
+  private extractCombination(node: any): PrestaShopCombinationInfo {
+    const stockNodes = this.toArray(node?.associations?.stock_availables?.stock_available);
+    return {
+      id_product_attribute: node?._attributes?.id,
+      id_product: this.extractText(node?.id_product) ?? '',
+      reference: this.extractText(node?.reference),
+      ean13: this.extractText(node?.ean13),
+      price: this.toNumber(this.extractText(node?.price)),
+      wholesale_price: this.toNumber(this.extractText(node?.wholesale_price)),
+      stock_available_id: stockNodes[0]?._attributes?.id
+    };
+  }
+
+  private extractProductInfo(node: any): PrestaShopProductInfo {
+    const categoryNodes = this.toArray(node?.associations?.categories?.category);
+    return {
+      id: node?._attributes?.id,
+      reference: this.extractText(node?.reference),
+      ean13: this.extractText(node?.ean13),
+      name: this.extractLocalized(node?.name, this.config.language_id),
+      description: this.extractLocalized(node?.description, this.config.language_id),
+      description_short: this.extractLocalized(node?.description_short, this.config.language_id),
+      tax_rules_group_id: this.toNumber(this.extractText(node?.tax_rules_group_id)),
+      price: this.toNumber(this.extractText(node?.price)),
+      wholesale_price: this.toNumber(this.extractText(node?.wholesale_price)),
+      manufacturer_id: node?.manufacturer?._attributes?.id as string | undefined,
+      categories: categoryNodes.map((category) => category?._attributes?.id).filter(Boolean)
+    };
+  }
+
   private extractProduct(node: any): PrestaShopProduct {
     return {
       id: node?._attributes?.id,
       reference: this.extractText(node?.reference),
       ean13: this.extractText(node?.ean13)
     };
+  }
+
+  // Localized field builder for update payloads:
+  // { language: { _attributes: { id }, _cdata: value } } -> <language id="N"><![CDATA[...]]></language>
+  private localizedField(value: string): Record<string, any> {
+    return {
+      language: {
+        _attributes: { id: this.config.language_id.toString() },
+        _cdata: value
+      }
+    };
+  }
+
+  private combinationToXml(update: Partial<PrestaShopCombinationInfo>): Record<string, any> {
+    const xml: Record<string, any> = {};
+    if (update.id_product_attribute) xml.id = update.id_product_attribute;
+    if (update.reference !== undefined) xml.reference = { _cdata: update.reference };
+    if (update.ean13 !== undefined) xml.ean13 = { _cdata: update.ean13 };
+    if (update.price !== undefined) xml.price = update.price;
+    if (update.wholesale_price !== undefined) xml.wholesale_price = update.wholesale_price;
+    return xml;
+  }
+
+  // `<prestashop><resource>...</resource></prestashop>` envelope for writes.
+  private toEnvelopeXml(resource: string, data: Record<string, any>): string {
+    return this.jsonToXml({ prestashop: { [resource]: data } });
+  }
+
+  private toUpdateXml(resource: string, data: Record<string, any>): string {
+    return this.toEnvelopeXml(resource, data);
   }
 
   private extractStockAvailable(node: any): PrestaShopStockAvailable {

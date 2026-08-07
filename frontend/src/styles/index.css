@@ -255,3 +255,31 @@ table.data th {
   background: #fef2f2;
   color: #dc2626;
 }
+
+table.data input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 0.2rem 0.35rem;
+  font-size: 0.85rem;
+  background: #fff;
+}
+
+table.data input.cell-conflict,
+td.cell-conflict {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.hint {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin: 0.5rem 0;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}

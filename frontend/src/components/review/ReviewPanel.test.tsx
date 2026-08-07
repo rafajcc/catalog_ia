@@ -74,7 +74,7 @@ describe('ReviewPanel', () => {
     await user.click(await screen.findByRole('button', { name: 'Mark review as completed' }));
 
     expect(onReviewCompleted).toHaveBeenCalledTimes(1);
-    expect(screen.getByText('Review completed. Sync unlocked.')).toBeInTheDocument();
+    expect(screen.getByText('Review completed.')).toBeInTheDocument();
   });
 
   it('exports the review state as a file', async () => {

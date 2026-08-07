@@ -6,12 +6,12 @@ import { ReviewStateManager } from './modules/review-state/review-state';
 import {
   AIConfig,
   AIResponse,
+  ConsistencyResult,
   ImageFile,
   ImageMatchResult,
   PrestaShopConfig,
   ProductData,
-  ProductField,
-  SyncSession
+  ProductField
 } from './types';
 
 export interface ValidationConfig {
@@ -63,10 +63,10 @@ export class DataStore {
   // One parsed dataset per uploaded CSV, keyed by fileId.
   datasets = new Map<string, DataSet>();
   validationResults = new Map<string, { products: ProductData[] }>();
+  consistencyResults = new Map<string, ConsistencyResult>();
   images: ImageFile[] = [];
   matchingResults = new Map<string, ImageMatchResult[]>();
   aiSuggestions = new Map<string, AIResponse[]>();
-  syncSessions = new Map<string, SyncSession>();
   reviewManagers = new Map<string, ReviewStateManager>();
   config: CatalogConfig = defaultConfig();
 

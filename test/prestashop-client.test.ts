@@ -543,4 +543,277 @@ describe('PrestaShopClient', () => {
       expect(result).toBe(false);
     });
   });
+
+  describe('fetchCombinationsByEan', () => {
+    it('fetches combinations matching the EANs with an OR filter', async () => {
+      const fake = makeFakeClient();
+      fake.get.mockResolvedValue({
+        data: `<prestashop>
+          <combinations>
+            <combination id="11">
+              <id_product><![CDATA[5]]></id_product>
+              <reference><![CDATA[REF-A]]></reference>
+              <ean13><![CDATA[8412345678901]]></ean13>
+              <price>10.000000</price>
+              <wholesale_price>8.000000</wholesale_price>
+              <associations>
+                <stock_availables>
+                  <stock_available id="50" xlink:href="https://shop.example.com/api/stock_availables/50"/>
+                </stock_availables>
+              </associations>
+            </combination>
+          </combinations>
+        </prestashop>`
+      });
+      const client = makeClient(fake);
+
+      const result = await client.fetchCombinationsByEan(['8412345678901']);
+
+      expect(fake.get).toHaveBeenCalledWith('/api/combinations', {
+        params: { 'filter[ean13]': '[8412345678901]', display: 'full', limit: 1000 }
+      });
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        id_product_attribute: '11',
+        id_product: '5',
+        reference: 'REF-A',
+        ean13: '8412345678901',
+        price: 10,
+        wholesale_price: 8,
+        stock_available_id: '50'
+      });
+    });
+
+    it('chunks large batches and normalizes the EANs', async () => {
+      const fake = makeFakeClient();
+      fake.get.mockResolvedValue({ data: '<prestashop><combinations/></prestashop>' });
+      const client = makeClient(fake);
+
+      const eans = Array.from({ length: 101 }, (_, i) => `84${String(i).padStart(11, '0')}`);
+
+      await client.fetchCombinationsByEan(eans);
+
+      expect(fake.get).toHaveBeenCalledTimes(2);
+      const firstFilter = fake.get.mock.calls[0][1].params['filter[ean13]'];
+      const secondFilter = fake.get.mock.calls[1][1].params['filter[ean13]'];
+      expect(firstFilter).toContain('|');
+      expect(secondFilter).not.toContain('|');
+    });
+  });
+
+  describe('fetchProductsById', () => {
+    it('fetches full product data for the given ids', async () => {
+      const fake = makeFakeClient();
+      fake.get.mockResolvedValue({
+        data: `<prestashop>
+          <products>
+            <product id="9">
+              <reference><![CDATA[REF-1]]></reference>
+              <name><language id="1"><![CDATA[Camiseta]]></language></name>
+              <tax_rules_group_id><![CDATA[21]]></tax_rules_group_id>
+              <manufacturer id="4"/>
+              <associations>
+                <categories>
+                  <category id="8" xlink:href="https://shop.example.com/api/categories/8"/>
+                  <category id="9" xlink:href="https://shop.example.com/api/categories/9"/>
+                </categories>
+              </associations>
+            </product>
+          </products>
+        </prestashop>`
+      });
+      const client = makeClient(fake);
+
+      const result = await client.fetchProductsById(['9']);
+
+      expect(fake.get).toHaveBeenCalledWith('/api/products', {
+        params: { 'filter[id]': '[9]', display: 'full', limit: 1000 }
+      });
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        id: '9',
+        reference: 'REF-1',
+        name: 'Camiseta',
+        tax_rules_group_id: 21,
+        manufacturer_id: '4',
+        categories: ['8', '9']
+      });
+    });
+  });
+
+  describe('fetchStockByIds', () => {
+    it('returns the stock id and quantity for each stock_available', async () => {
+      const fake = makeFakeClient();
+      fake.get.mockResolvedValue({
+        data: `<prestashop>
+          <stock_availables>
+            <stock_available id="50"><quantity><![CDATA[7]]></quantity></stock_available>
+            <stock_available id="51"><quantity><![CDATA[2]]></quantity></stock_available>
+          </stock_availables>
+        </prestashop>`
+      });
+      const client = makeClient(fake);
+
+      const result = await client.fetchStockByIds(['50', '51']);
+
+      expect(fake.get).toHaveBeenCalledWith('/api/stock_availables', {
+        params: { 'filter[id]': '[50|51]', display: 'full', limit: 1000 }
+      });
+      expect(result).toEqual([
+        { id: '50', quantity: 7 },
+        { id: '51', quantity: 2 }
+      ]);
+    });
+  });
+
+  describe('updateCombination', () => {
+    it('patches the combination with the updated fields', async () => {
+      const fake = makeFakeClient();
+      fake.patch.mockResolvedValue({ data: '' });
+      const client = makeClient(fake);
+
+      const result = await client.updateCombination('11', {
+        id_product_attribute: '11',
+        reference: 'REF-NUEVO',
+        price: 15.5
+      });
+
+      expect(fake.patch).toHaveBeenCalledWith('/api/combinations/11', expect.any(String));
+      const xml = fake.patch.mock.calls[0][1] as string;
+      expect(xml).toContain('<combination>');
+      expect(xml).toContain('<reference><![CDATA[REF-NUEVO]]></reference>');
+      expect(xml).toContain('<price>15.5</price>');
+      expect(result).toMatchObject({ success: true, operation: 'update_combination', errors: [] });
+    });
+
+    it('returns a failure result when the request errors', async () => {
+      const fake = makeFakeClient();
+      fake.patch.mockRejectedValue(new Error('timeout'));
+      const client = makeClient(fake);
+
+      const result = await client.updateCombination('11', { id_product_attribute: '11', reference: 'X' });
+
+      expect(result.success).toBe(false);
+      expect(result.errors).toEqual(['timeout']);
+    });
+  });
+
+  describe('updateProductFields', () => {
+    it('patches product-level fields with the prestashop envelope', async () => {
+      const fake = makeFakeClient();
+      fake.patch.mockResolvedValue({ data: '<prestashop><product id="9"/></prestashop>' });
+      const client = makeClient(fake);
+
+      const result = await client.updateProductFields('9', {
+        id: '9',
+        tax_rules_group_id: 21,
+        manufacturer: { _attributes: { id: '4' } }
+      } as any);
+
+      expect(fake.patch).toHaveBeenCalledWith('/api/products/9', expect.any(String));
+      const xml = fake.patch.mock.calls[0][1] as string;
+      expect(xml).toContain('<prestashop>');
+      expect(xml).toContain('<product>');
+      expect(xml).toContain('<tax_rules_group_id>21</tax_rules_group_id>');
+      expect(xml).toContain('<manufacturer id="4"/>');
+      expect(result).toMatchObject({ success: true, product_id: '9', operation: 'update_product' });
+    });
+  });
+
+  describe('resolveManufacturer', () => {
+    it('returns the manufacturer id matching the name case-insensitively', async () => {
+      const fake = makeFakeClient();
+      fake.get.mockResolvedValue({
+        data: `<prestashop>
+          <manufacturers>
+            <manufacturer id="3">
+              <name><language id="1"><![CDATA[Marca A]]></language></name>
+            </manufacturer>
+          </manufacturers>
+        </prestashop>`
+      });
+      const client = makeClient(fake);
+
+      const result = await client.resolveManufacturer('  marca a  ');
+
+      expect(fake.get).toHaveBeenCalledWith('/api/manufacturers', { params: { display: 'full', limit: 1000 } });
+      expect(result).toBe('3');
+    });
+
+    it('returns null when no manufacturer matches', async () => {
+      const fake = makeFakeClient();
+      fake.get.mockResolvedValue({
+        data: '<prestashop><manufacturers><manufacturer id="3"><name><language id="1">Otra</language></name></manufacturer></manufacturers></prestashop>'
+      });
+      const client = makeClient(fake);
+
+      expect(await client.resolveManufacturer('Inexistente')).toBeNull();
+    });
+  });
+
+  describe('createManufacturer', () => {
+    it('posts the manufacturer and returns the created id', async () => {
+      const fake = makeFakeClient();
+      fake.post.mockResolvedValue({
+        data: '<prestashop><manufacturer id="33"><name><language id="1">Nueva Marca</language></name></manufacturer></prestashop>'
+      });
+      const client = makeClient(fake);
+
+      const result = await client.createManufacturer('Nueva Marca');
+
+      expect(fake.post).toHaveBeenCalledWith('/api/manufacturers', expect.any(String));
+      expect(fake.post.mock.calls[0][1]).toContain('<name><![CDATA[Nueva Marca]]></name>');
+      expect(result).toBe('33');
+    });
+
+    it('returns null when the request errors', async () => {
+      const fake = makeFakeClient();
+      fake.post.mockRejectedValue(new Error('conflict'));
+      const client = makeClient(fake);
+
+      expect(await client.createManufacturer('Nueva Marca')).toBeNull();
+    });
+  });
+
+  describe('resolveCategoryByName', () => {
+    it('returns the category id matching the name', async () => {
+      const fake = makeFakeClient();
+      fake.get.mockResolvedValue({
+        data: `<prestashop>
+          <categories>
+            <category id="8">
+              <name><language id="1"><![CDATA[Categoria A]]></language></name>
+            </category>
+          </categories>
+        </prestashop>`
+      });
+      const client = makeClient(fake);
+
+      const result = await client.resolveCategoryByName('categoria a');
+
+      expect(fake.get).toHaveBeenCalledWith('/api/categories', {
+        params: { 'filter[name]': '[categoria a]', display: 'full', limit: 1000 }
+      });
+      expect(result).toBe('8');
+    });
+  });
+
+  describe('createCategory', () => {
+    it('posts the category under the default parent and returns the created id', async () => {
+      const fake = makeFakeClient();
+      fake.post.mockResolvedValue({
+        data: '<prestashop><category id="88"><name><language id="1">Categoria Nueva</language></name></category></prestashop>'
+      });
+      const client = makeClient(fake);
+
+      const result = await client.createCategory('Categoria Nueva');
+
+      expect(fake.post).toHaveBeenCalledWith('/api/categories', expect.any(String));
+      const xml = fake.post.mock.calls[0][1] as string;
+      expect(xml).toContain('<id_parent>2</id_parent>');
+      expect(xml).toContain('<![CDATA[Categoria Nueva]]>');
+      expect(xml).toContain('<language id="1">');
+      expect(result).toBe('88');
+    });
+  });
 });

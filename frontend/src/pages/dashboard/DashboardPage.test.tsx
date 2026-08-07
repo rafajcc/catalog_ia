@@ -29,9 +29,6 @@ describe('DashboardPage', () => {
       getImageMatchingResults: jest.fn(),
       generateTextSuggestions: jest.fn(),
       getTextSuggestions: jest.fn(),
-      createSyncSession: jest.fn(),
-      startSync: jest.fn(),
-      getSyncResults: jest.fn(),
       getReviewState: jest.fn(),
       updateReviewState: jest.fn(),
       applyReviewChanges: jest.fn(),
@@ -77,7 +74,6 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('button', { name: 'Validation' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Images' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'AI' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Sync' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Review' })).toBeDisabled();
   });
 
@@ -97,7 +93,6 @@ describe('DashboardPage', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Validation' })).toBeEnabled());
 
     expect(screen.getByRole('button', { name: 'AI' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Sync' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Review' })).toBeDisabled();
 
     await user.click(screen.getByRole('button', { name: 'Validation' }));
@@ -109,38 +104,6 @@ describe('DashboardPage', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'AI' })).toBeEnabled());
     expect(screen.getByRole('button', { name: 'Review' })).toBeEnabled();
-    // Sync stays locked until the review is marked as completed.
-    expect(screen.getByRole('button', { name: 'Sync' })).toBeDisabled();
-  });
-
-  it('unlocks the sync tab after the review is marked as completed', async () => {
-    mockApi.uploadCSV.mockResolvedValue({ success: true, file_id: 'file-1' });
-    mockApi.parseCSV.mockResolvedValue({ success: true, data: { data_id: 'data-1' } });
-    mockApi.validateProducts.mockResolvedValue({
-      success: true,
-      data: { products: [{ id: 'p1', name: 'Alpha', validation_errors: [] }] }
-    });
-    mockApi.getReviewState.mockResolvedValue({
-      success: true,
-      data: { total_products: 1, valid_count: 1, invalid_count: 0, products: [] }
-    });
-    renderWithI18n(<DashboardPage />, 'en');
-
-    const user = userEvent.setup();
-    await user.upload(screen.getByLabelText(/Product catalog \(CSV\)/), new File(['a,b'], 'p.csv'));
-    await user.click(screen.getByRole('button', { name: /Upload CSV/ }));
-
-    await user.click(await screen.findByRole('button', { name: 'Validation' }));
-    await user.click(await screen.findByRole('button', { name: 'Validate products' }));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Review' })).toBeEnabled());
-    expect(screen.getByRole('button', { name: 'Sync' })).toBeDisabled();
-
-    await user.click(screen.getByRole('button', { name: 'Review' }));
-    await user.click(screen.getByRole('button', { name: 'Load review state' }));
-    await user.click(await screen.findByRole('button', { name: 'Mark review as completed' }));
-    expect(await screen.findByText('Review completed. Sync unlocked.')).toBeInTheDocument();
-
-    expect(screen.getByRole('button', { name: 'Sync' })).toBeEnabled();
   });
 
   it('auto-loads the stored validation when reopening the tab without upload changes', async () => {

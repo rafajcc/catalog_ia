@@ -27,7 +27,6 @@
     "test:api-routes": "jest --testPathPattern=api-routes",
     "test:index": "jest --testPathPattern=index",
     "test:prestashop": "jest --testPathPattern=prestashop-client",
-    "test:sync-service": "jest --testPathPattern=sync-service",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write src/"
   },

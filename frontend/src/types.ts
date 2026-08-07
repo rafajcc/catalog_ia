@@ -95,66 +95,6 @@ export interface AIResponse {
   warnings?: string[];
 }
 
-export type SyncOperation =
-  | 'create_product' | 'update_product' | 'update_stock'
-  | 'upload_image' | 'sync_single_product';
-
-export type SyncStatus = 'in_progress' | 'completed' | 'failed';
-
-export interface SyncConfig {
-  batch_size: number;
-}
-
-export interface SyncPlan {
-  products_to_create: ProductData[];
-  products_to_update: ProductData[];
-  stock_updates: StockUpdate[];
-  images_to_upload: ImageUpload[];
-  texts_to_update: TextUpdate[];
-}
-
-export interface StockUpdate {
-  product_id: string;
-  stock_available_id: string;
-  new_quantity: number;
-  reference?: string;
-}
-
-export interface ImageUpload {
-  product_id: string;
-  image_file: ImageFile;
-}
-
-export interface TextUpdate {
-  product_id: string;
-  field: string;
-  new_value: string;
-  original_value: string;
-}
-
-export interface SyncResult {
-  operation: SyncOperation;
-  status: SyncStatus;
-  product_id: string;
-  reference?: string;
-  prestashop_id?: string;
-  error?: string;
-  retry_count: number;
-  executed_at?: Date;
-  response_data?: any;
-}
-
-export interface SyncSession {
-  id: string;
-  config: SyncConfig;
-  plan: SyncPlan;
-  status: 'pending' | 'in_progress' | 'completed' | 'failed';
-  started_at: Date;
-  completed_at?: Date;
-  dry_run: boolean;
-  results?: SyncResult[];
-}
-
 export interface PrestaShopConfig {
   base_url: string;
   api_key: string;
@@ -214,9 +154,76 @@ export interface FileUploadResponse extends ApiResponse {
   rows?: number;
 }
 
-export interface SyncResponse extends ApiResponse {
-  session?: SyncSession;
-  session_id?: string;
+// Consistency check against PrestaShop: every CSV row is one combination
+// (id_product_attribute) of a product (id_product) found by its EAN.
+export interface PrestaShopCombinationInfo {
+  id_product_attribute: string;
+  id_product: string;
+  reference?: string;
+  ean13?: string;
+  price?: number;
+  wholesale_price?: number;
+  stock_available_id?: string;
+  quantity?: number;
+}
+
+export interface PrestaShopProductInfo {
+  id: string;
+  reference?: string;
+  ean13?: string;
+  name?: string;
+  description?: string;
+  description_short?: string;
+  tax_rules_group_id?: number;
+  price?: number;
+  wholesale_price?: number;
+  manufacturer_id?: string;
+  categories?: string[];
+}
+
+export interface RowResolution {
+  row_id: string;
+  row: ProductData;
+  id_product?: string;
+  combination?: PrestaShopCombinationInfo;
+  product?: PrestaShopProductInfo;
+  error?: string;
+}
+
+export interface ConsistencyIssueValue {
+  row_id: string;
+  value: string;
+}
+
+export interface ConsistencyIssue {
+  field: string;
+  id_product: string;
+  values: ConsistencyIssueValue[];
+  message: string;
+}
+
+export interface ConsistencyResult {
+  resolutions: RowResolution[];
+  issues: ConsistencyIssue[];
+  not_found_count: number;
+  checked: boolean;
+  message?: string;
+}
+
+export interface CombinationSyncResult {
+  row_id: string;
+  operation: string;
+  status: 'completed' | 'failed' | 'skipped';
+  error?: string;
+}
+
+export interface UploadChangesResult {
+  products_updated: number;
+  combinations_updated: number;
+  stock_updated: number;
+  manufacturers_created: number;
+  categories_created: number;
+  results: CombinationSyncResult[];
 }
 
 export interface ConfigurationResponse extends ApiResponse {

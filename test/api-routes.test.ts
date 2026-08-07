@@ -29,16 +29,45 @@ describe('API routes', () => {
     await fs.remove(uploadsDir);
   });
 
-  function makeApp(options: { fakePrestashop?: boolean; configFile?: string } = {}) {
+  function makeApp(options: { fakePrestashop?: boolean; prestashopClient?: PrestaShopClient; configFile?: string } = {}) {
     const opts: any = { uploadsDir };
     if (options.fakePrestashop) {
-      const fakeClient = { testConnection: () => Promise.resolve(true) } as unknown as PrestaShopClient;
+      const fakeClient =
+        options.prestashopClient ?? ({ testConnection: () => Promise.resolve(true) } as unknown as PrestaShopClient);
       opts.prestashopClientFactory = () => fakeClient;
     }
     if (options.configFile) {
       opts.configFile = options.configFile;
     }
     return createApp(opts);
+  }
+
+  function makeConsistencyFakeClient(): PrestaShopClient {
+    return {
+      testConnection: () => Promise.resolve(true),
+      fetchCombinationsByEan: jest.fn().mockResolvedValue([
+        { id_product_attribute: '11', id_product: '5', ean13: '8412345678901', reference: 'REF-A', stock_available_id: '50' },
+        { id_product_attribute: '12', id_product: '5', ean13: '8412345678902', reference: 'REF-B', stock_available_id: '51' }
+      ]),
+      fetchProductsById: jest.fn().mockResolvedValue([
+        { id: '5', name: 'Producto', description: 'Desc', tax_rules_group_id: 5, manufacturer_id: '3', categories: [] }
+      ]),
+      fetchStockByIds: jest.fn().mockResolvedValue([{ id: '50', quantity: 7 }, { id: '51', quantity: 2 }]),
+      updateProductFields: jest.fn().mockResolvedValue({ success: true, operation: 'update_product', errors: [], warnings: [], timestamp: new Date() }),
+      updateCombination: jest.fn().mockResolvedValue({ success: true, operation: 'update_combination', errors: [], warnings: [], timestamp: new Date() }),
+      updateStock: jest.fn().mockResolvedValue({ success: true, operation: 'update_stock', errors: [], warnings: [], timestamp: new Date() }),
+      resolveManufacturer: jest.fn().mockResolvedValue('3'),
+      createManufacturer: jest.fn().mockResolvedValue(null),
+      resolveCategoryByName: jest.fn().mockResolvedValue('8'),
+      createCategory: jest.fn().mockResolvedValue(null)
+    } as unknown as PrestaShopClient;
+  }
+
+  async function configurePrestashop(app: ReturnType<typeof createApp>): Promise<void> {
+    const saved = await request(app)
+      .put('/api/config')
+      .send({ prestashop: { base_url: 'https://shop.example.com', api_key: 'secret', language_id: 1 } });
+    expect(saved.status).toBe(200);
   }
 
   async function uploadAndParse(app: ReturnType<typeof createApp>): Promise<string> {
@@ -389,6 +418,92 @@ describe('API routes', () => {
     expect(res.status).toBe(404);
   });
 
+  it('reports that the consistency check is skipped when PrestaShop is not configured', async () => {
+    const app = makeApp();
+    const dataId = await uploadAndParse(app);
+
+    const validated = await request(app).post(`/api/validate/products/${dataId}`);
+
+    expect(validated.status).toBe(200);
+    expect(validated.body.data.consistency).toBeDefined();
+    expect(validated.body.data.consistency.checked).toBe(false);
+    expect(validated.body.data.consistency.message).toContain('not configured');
+  });
+
+  it('resolves rows against PrestaShop and flags inconsistent product-level fields', async () => {
+    const fakeClient = makeConsistencyFakeClient();
+    const app = makeApp({ fakePrestashop: true, prestashopClient: fakeClient });
+    await configurePrestashop(app);
+    const dataId = await uploadAndParse(app);
+
+    const validated = await request(app).post(`/api/validate/products/${dataId}`);
+
+    expect(validated.status).toBe(200);
+    const consistency = validated.body.data.consistency;
+    expect(consistency.checked).toBe(true);
+    expect(consistency.not_found_count).toBe(1);
+    expect(consistency.resolutions).toHaveLength(3);
+
+    // Producto C carries an invalid EAN that does not exist in PrestaShop.
+    const products = validated.body.data.products;
+    const notFound = products.find((p: any) => p.reference === 'REF-C');
+    expect(notFound.validation_errors.some((e: any) => e.code === 'EAN_NOT_FOUND')).toBe(true);
+    expect(notFound.status).toBe('invalid');
+
+    // Producto A and Producto B map to the same id_product (5) but keep
+    // different filled values, so the product-level fields are inconsistent.
+    const fields = consistency.issues.map((issue: any) => issue.field);
+    expect(fields).toContain('name');
+    expect(fields).toContain('brand');
+    expect(fields).toContain('category');
+    const productA = products.find((p: any) => p.reference === 'REF-A');
+    expect(productA.validation_errors.some((e: any) => e.code === 'PRODUCT_LEVEL_INCONSISTENCY')).toBe(true);
+  });
+
+  it('uploads the validated changes back to PrestaShop', async () => {
+    const fakeClient = makeConsistencyFakeClient();
+    const app = makeApp({ fakePrestashop: true, prestashopClient: fakeClient });
+    await configurePrestashop(app);
+    const dataId = await uploadAndParse(app);
+
+    await request(app).post(`/api/validate/products/${dataId}`);
+    const uploaded = await request(app).post(`/api/validate/upload/${dataId}`).send({ rows: [] });
+
+    expect(uploaded.status).toBe(200);
+    expect(uploaded.body.success).toBe(true);
+    expect(uploaded.body.message).toContain('uploaded');
+    expect(uploaded.body.data.products_updated).toBeGreaterThanOrEqual(0);
+    expect(Array.isArray(uploaded.body.data.results)).toBe(true);
+    // With no edited rows the module falls back to the parsed products and
+    // combination-level writes (reference/EAN/price) go through the client.
+    expect(fakeClient.updateProductFields).toHaveBeenCalled();
+    expect(fakeClient.updateCombination).toHaveBeenCalled();
+  });
+
+  it('rejects the upload endpoint when PrestaShop is not configured', async () => {
+    const app = makeApp();
+    const dataId = await uploadAndParse(app);
+
+    const res = await request(app).post(`/api/validate/upload/${dataId}`).send({ rows: [] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.message).toContain('configured');
+  });
+
+  it('rejects the upload endpoint before the products have been validated', async () => {
+    const fakeClient = makeConsistencyFakeClient();
+    const app = makeApp({ fakePrestashop: true, prestashopClient: fakeClient });
+    await configurePrestashop(app);
+    const dataId = await uploadAndParse(app);
+
+    const res = await request(app).post(`/api/validate/upload/${dataId}`).send({ rows: [] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.message).toContain('Validate products');
+  });
+
   it('persists the configuration across app instances with encrypted secrets', async () => {
     const configFile = path.join(uploadsDir, 'config.json');
     const first = makeApp({ configFile });
@@ -539,49 +654,6 @@ describe('API routes', () => {
     const stored = await request(app).get(`/api/ai/suggestions/${dataId}`);
     expect(stored.status).toBe(200);
     expect(stored.body.data.length).toBe(suggested.body.data.length);
-  });
-
-  it('runs the sync session lifecycle in dry-run mode', async () => {
-    const app = makeApp();
-    const dataId = await uploadAndParse(app);
-
-    const created = await request(app).post(`/api/sync/session/${dataId}`).send({ batch_size: 5 });
-    expect(created.status).toBe(200);
-    expect(created.body.session).toBeDefined();
-    expect(created.body.session.dry_run).toBe(true);
-    expect(created.body.session_id).toBe(created.body.session.id);
-
-    const sessionId = created.body.session_id as string;
-
-    const fetched = await request(app).get(`/api/sync/session/${sessionId}`);
-    expect(fetched.status).toBe(200);
-    expect(fetched.body.session.id).toBe(sessionId);
-
-    const started = await request(app).post(`/api/sync/start/${sessionId}`);
-    expect(started.status).toBe(200);
-    expect(Array.isArray(started.body.data)).toBe(true);
-    expect(started.body.data.length).toBe(3);
-
-    const results = await request(app).get(`/api/sync/results/${sessionId}`);
-    expect(results.status).toBe(200);
-    expect(results.body.data.every((r: any) => r.status === 'completed')).toBe(true);
-
-    const jsonExport = await request(app).get(`/api/sync/export/${sessionId}/json`);
-    expect(jsonExport.status).toBe(200);
-    expect(jsonExport.body.success).toBe(true);
-
-    const csvExport = await request(app).get(`/api/sync/export/${sessionId}/csv`);
-    expect(csvExport.status).toBe(200);
-    expect(csvExport.text).toContain('operation,status');
-
-    const cancelled = await request(app).post(`/api/sync/cancel/${sessionId}`);
-    expect(cancelled.status).toBe(200);
-    expect(cancelled.body.success).toBe(true);
-  });
-
-  it('returns 404 for an unknown sync session', async () => {
-    const res = await request(makeApp()).get('/api/sync/session/unknown');
-    expect(res.status).toBe(404);
   });
 
   it('loads, edits and exports the review state', async () => {

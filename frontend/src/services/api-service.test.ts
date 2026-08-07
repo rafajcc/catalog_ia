@@ -229,43 +229,11 @@ describe('ApiService', () => {
       expect(mockGet).toHaveBeenCalledWith('/ai/suggestions/d1');
     });
 
-    it('createSyncSession posts config', async () => {
-      mockPost.mockResolvedValue({ data: { success: true, session_id: 's1' } });
-      const config = { batch_size: 10 } as any;
-      const result = await service.createSyncSession('d1', config);
-      expect(result.session_id).toBe('s1');
-      expect(mockPost).toHaveBeenCalledWith('/sync/session/d1', config);
-    });
-
-    it('getSyncSession hits the session endpoint', async () => {
-      mockGet.mockResolvedValue({ data: { success: true, session_id: 's1' } });
-      await service.getSyncSession('s1');
-      expect(mockGet).toHaveBeenCalledWith('/sync/session/s1');
-    });
-
-    it('startSync posts the session id', async () => {
+    it('uploadValidatedRows posts the edited rows', async () => {
       mockPost.mockResolvedValue({ data: { success: true } });
-      await service.startSync('s1');
-      expect(mockPost).toHaveBeenCalledWith('/sync/start/s1');
-    });
-
-    it('cancelSync posts the session id', async () => {
-      mockPost.mockResolvedValue({ data: { success: true } });
-      await service.cancelSync('s1');
-      expect(mockPost).toHaveBeenCalledWith('/sync/cancel/s1');
-    });
-
-    it('getSyncResults hits the results endpoint', async () => {
-      mockGet.mockResolvedValue({ data: { success: true } });
-      await service.getSyncResults('s1');
-      expect(mockGet).toHaveBeenCalledWith('/sync/results/s1');
-    });
-
-    it('exportSyncResults requests a blob', async () => {
-      mockGet.mockResolvedValue({ data: new Blob(['csv']) });
-      const blob = await service.exportSyncResults('s1', 'csv');
-      expect(blob).toBeInstanceOf(Blob);
-      expect(mockGet).toHaveBeenCalledWith('/sync/export/s1/csv', { responseType: 'blob' });
+      const rows = [{ id: 'r1', name: 'Editado' }] as any;
+      await service.uploadValidatedRows('d1', rows);
+      expect(mockPost).toHaveBeenCalledWith('/validate/upload/d1', { rows });
     });
 
     it('getReviewState hits the review endpoint', async () => {

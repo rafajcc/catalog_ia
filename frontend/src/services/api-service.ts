@@ -9,8 +9,7 @@ import {
   FileUploadResponse,
   ImageMatcherConfig,
   PrestaShopConfig,
-  SyncConfig,
-  SyncResponse
+  ProductData
 } from '../types';
 
 export type ConfigurationUpdate = Partial<Omit<ConfigurationResponse, 'prestashop' | 'ai'>> & {
@@ -199,36 +198,9 @@ export class ApiService {
     return response.data;
   }
 
-  // Sync endpoints
-  async createSyncSession(dataId: string, config: SyncConfig): Promise<SyncResponse> {
-    const response = await this.client.post(`/sync/session/${dataId}`, config);
-    return response.data;
-  }
-
-  async getSyncSession(sessionId: string): Promise<SyncResponse> {
-    const response = await this.client.get(`/sync/session/${sessionId}`);
-    return response.data;
-  }
-
-  async startSync(sessionId: string): Promise<ApiResponse> {
-    const response = await this.client.post(`/sync/start/${sessionId}`);
-    return response.data;
-  }
-
-  async cancelSync(sessionId: string): Promise<ApiResponse> {
-    const response = await this.client.post(`/sync/cancel/${sessionId}`);
-    return response.data;
-  }
-
-  async getSyncResults(sessionId: string): Promise<ApiResponse> {
-    const response = await this.client.get(`/sync/results/${sessionId}`);
-    return response.data;
-  }
-
-  async exportSyncResults(sessionId: string, format: string): Promise<Blob> {
-    const response = await this.client.get(`/sync/export/${sessionId}/${format}`, {
-      responseType: 'blob'
-    });
+  // Validation + PrestaShop consistency endpoints
+  async uploadValidatedRows(dataId: string, rows: ProductData[]): Promise<ApiResponse> {
+    const response = await this.client.post(`/validate/upload/${dataId}`, { rows });
     return response.data;
   }
 
