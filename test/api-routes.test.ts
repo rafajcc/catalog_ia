@@ -288,11 +288,11 @@ describe('API routes', () => {
     expect(lines[1].split(',').every((cell) => cell === '')).toBe(true);
   });
 
-  it('rejects CSV processing when no products can be extracted', async () => {
+  it('rejects CSV processing when the file contains no data rows', async () => {
     const app = makeApp();
     const upload = await request(app)
       .post('/api/upload/csv')
-      .attach('file', Buffer.from(`${CSV_HEADER}\nbad-ean,,,,,,,,,,,\nbad-ean2,,,,,,,,,,,`), {
+      .attach('file', Buffer.from(CSV_HEADER), {
         filename: 'noproducts.csv',
         contentType: 'text/csv'
       });
@@ -300,10 +300,10 @@ describe('API routes', () => {
 
     const res = await request(app).post('/api/process/csv').send({ fileId: upload.body.file_id });
     expect(res.status).toBe(400);
-    expect(res.body.error.message).toMatch(/no products could be extracted/i);
+    expect(res.body.error.message).toMatch(/contains no data rows/i);
   });
 
-  it('reports invalid rows when prices or quantities do not comply', async () => {
+  it('defers price and quantity validation to the validation screen', async () => {
     const app = makeApp();
     const upload = await request(app)
       .post('/api/upload/csv')
@@ -315,10 +315,59 @@ describe('API routes', () => {
 
     const res = await request(app).post('/api/process/csv').send({ fileId: upload.body.file_id });
     expect(res.status).toBe(200);
-    expect(res.body.data.invalid_rows).toBe(2);
-    expect(res.body.data.row_errors).toHaveLength(2);
-    expect(res.body.data.row_errors[0][0].code).toBe('INVALID_PRICE');
-    expect(res.body.data.row_errors[1][0].code).toBe('INVALID_QUANTITY');
+    // Every row becomes a product; bad values are kept raw for the validation screen.
+    expect(res.body.data.products).toHaveLength(3);
+    expect(res.body.data.summary.total).toBe(3);
+
+    const dataId = res.body.data.data_id;
+    const validated = await request(app).post(`/api/validate/products/${dataId}`);
+    expect(validated.status).toBe(200);
+    const products = validated.body.data.products;
+    const withErrors = products.filter((p: any) => (p.validation_errors ?? []).length > 0);
+    expect(withErrors.length).toBe(2);
+    expect(products[0].validation_errors.some((e: any) => e.field === 'price')).toBe(true);
+    expect(products[1].validation_errors.some((e: any) => e.field === 'quantity')).toBe(true);
+  });
+
+  it('flags duplicate EANs and references across all uploaded CSVs during validation', async () => {
+    const app = makeApp();
+
+    const first = Buffer.from(
+      `${CSV_HEADER}\n8412345678901,REF-A,Producto A,19.99,15.00,10,Marca A,Categoria A,1,Desc corta A,"Desc larga A",EAN-1\n8412345678902,REF-B,Producto B,9.50,7.00,5,Marca B,Categoria B,1,Desc corta B,"Desc larga B",EAN-2`,
+      'utf8'
+    );
+    const second = Buffer.from(
+      `${CSV_HEADER}\n8412345678901,REF-C,Producto C,3.00,2.00,1,Marca C,Categoria C,1,Desc corta C,"Desc larga C",EAN-3\n8412345678903,REF-A,Producto D,5.00,4.00,2,Marca D,Categoria D,1,Desc corta D,"Desc larga D",EAN-4`,
+      'utf8'
+    );
+
+    const uploadA = await request(app)
+      .post('/api/upload/csv')
+      .attach('file', first, { filename: 'a.csv', contentType: 'text/csv' });
+    const uploadB = await request(app)
+      .post('/api/upload/csv')
+      .attach('file', second, { filename: 'b.csv', contentType: 'text/csv' });
+    expect(uploadA.status).toBe(200);
+    expect(uploadB.status).toBe(200);
+
+    const parsedA = await request(app).post('/api/process/csv').send({ fileId: uploadA.body.file_id });
+    const parsedB = await request(app).post('/api/process/csv').send({ fileId: uploadB.body.file_id });
+    expect(parsedA.status).toBe(200);
+    expect(parsedB.status).toBe(200);
+
+    const dataId = parsedB.body.data.data_id;
+    const validated = await request(app).post(`/api/validate/products/${dataId}`);
+    expect(validated.status).toBe(200);
+    expect(validated.body.data.products).toHaveLength(4);
+
+    // Producto A (EAN repeated in the second file), Producto C (same EAN) and
+    // Producto D (same reference) must all be flagged; Producto B stays clean.
+    const duplicates = validated.body.data.products.filter((p: any) =>
+      (p.validation_errors ?? []).some((e: any) => e.code === 'DUPLICATE_VALUE')
+    );
+    expect(duplicates.length).toBe(3);
+    const flaggedReferences = duplicates.map((p: any) => p.reference).sort();
+    expect(flaggedReferences).toEqual(['REF-A', 'REF-A', 'REF-C']);
   });
 
   it('validates products and stores the results', async () => {
@@ -328,11 +377,11 @@ describe('API routes', () => {
     const validated = await request(app).post(`/api/validate/products/${dataId}`);
     expect(validated.status).toBe(200);
     expect(Array.isArray(validated.body.data.products)).toBe(true);
-    expect(validated.body.data.products.length).toBe(2);
+    expect(validated.body.data.products.length).toBe(3);
 
     const results = await request(app).get(`/api/validate/results/${dataId}`);
     expect(results.status).toBe(200);
-    expect(results.body.data.products.length).toBe(2);
+    expect(results.body.data.products.length).toBe(3);
   });
 
   it('returns 404 when validating unknown data', async () => {
@@ -383,11 +432,11 @@ describe('API routes', () => {
 
     const validated = await request(app).post(`/api/validate/products/${dataId}`);
     expect(validated.status).toBe(200);
-    expect(validated.body.data.products.length).toBe(4);
+    expect(validated.body.data.products.length).toBe(6);
 
     const results = await request(app).get(`/api/validate/results/${dataId}`);
     expect(results.status).toBe(200);
-    expect(results.body.data.products.length).toBe(4);
+    expect(results.body.data.products.length).toBe(6);
   });
 
   it('removes a deleted file\'s products from the merged dataset', async () => {
@@ -405,14 +454,14 @@ describe('API routes', () => {
     const dataId = parsedB.body.data.data_id;
 
     const before = await request(app).post(`/api/validate/products/${dataId}`);
-    expect(before.body.data.products.length).toBe(4);
+    expect(before.body.data.products.length).toBe(6);
 
     const removed = await request(app).delete(`/api/upload/csv/${uploadA.body.file_id}`);
     expect(removed.status).toBe(200);
 
     const after = await request(app).post(`/api/validate/products/${dataId}`);
     expect(after.status).toBe(200);
-    expect(after.body.data.products.length).toBe(2);
+    expect(after.body.data.products.length).toBe(3);
   });
 
   it('uploads images and matches them against products', async () => {
@@ -433,12 +482,12 @@ describe('API routes', () => {
 
     expect(matched.status).toBe(200);
     expect(Array.isArray(matched.body.data)).toBe(true);
-    expect(matched.body.data.length).toBe(2);
+    expect(matched.body.data.length).toBe(3);
     expect(matched.body.data.some((m: any) => m.matched_files.length > 0)).toBe(true);
 
     const stored = await request(app).get(`/api/images/results/${dataId}`);
     expect(stored.status).toBe(200);
-    expect(stored.body.data.length).toBe(2);
+    expect(stored.body.data.length).toBe(3);
   });
 
   it('selects an image folder from the server', async () => {
@@ -511,7 +560,7 @@ describe('API routes', () => {
     const started = await request(app).post(`/api/sync/start/${sessionId}`);
     expect(started.status).toBe(200);
     expect(Array.isArray(started.body.data)).toBe(true);
-    expect(started.body.data.length).toBe(2);
+    expect(started.body.data.length).toBe(3);
 
     const results = await request(app).get(`/api/sync/results/${sessionId}`);
     expect(results.status).toBe(200);
@@ -541,7 +590,7 @@ describe('API routes', () => {
 
     const state = await request(app).get(`/api/review/state/${dataId}`);
     expect(state.status).toBe(200);
-    expect(state.body.data.total_products).toBe(2);
+    expect(state.body.data.total_products).toBe(3);
 
     const productId = state.body.data.products[0].product_id as string;
 
@@ -555,7 +604,7 @@ describe('API routes', () => {
       .post(`/api/review/batch/${dataId}`)
       .send({ action: 'accept_all' });
     expect(batch.status).toBe(200);
-    expect(batch.body.data.accepted_count).toBe(2);
+    expect(batch.body.data.accepted_count).toBe(3);
 
     const exported = await request(app).get(`/api/review/export/${dataId}`);
     expect(exported.status).toBe(200);

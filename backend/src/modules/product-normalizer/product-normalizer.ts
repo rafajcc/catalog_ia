@@ -3,8 +3,7 @@
 
 import { 
   ProductData, 
-  ParsedRow,
-  ValidationError
+  ParsedRow
 } from '../../types';
 
 export class ProductNormalizer {
@@ -37,7 +36,6 @@ export class ProductNormalizer {
     };
 
     this.transformations = [
-      this.validateRequiredFields,
       this.addSourceMetadata
     ];
   }
@@ -92,63 +90,6 @@ export class ProductNormalizer {
     } else {
       return `product_${Date.now()}`;
     }
-  }
-
-  private validateRequiredFields(product: ProductData): ProductData {
-    const errors: ValidationError[] = [];
-    const warnings: string[] = [];
-
-    if (!product.name) {
-      errors.push({
-        field: 'name',
-        message: 'Product name is required',
-        code: 'MISSING_REQUIRED_FIELD',
-        severity: 'error',
-        value: product.name
-      });
-    }
-
-    if (!product.ean) {
-      errors.push({
-        field: 'ean',
-        message: 'EAN is required',
-        code: 'MISSING_REQUIRED_FIELD',
-        severity: 'error',
-        value: product.ean
-      });
-    }
-
-    if (!product.reference) {
-      errors.push({
-        field: 'reference',
-        message: 'Product reference is required',
-        code: 'MISSING_REQUIRED_FIELD',
-        severity: 'error',
-        value: product.reference
-      });
-    }
-
-    if (!product.price) {
-      warnings.push('Product missing price - will keep the existing store price');
-    }
-
-    if (!product.quantity) {
-      warnings.push('Product missing stock quantity - will keep the existing store stock');
-    }
-
-    if (errors.length > 0) {
-      product.status = 'invalid';
-      product.validation_errors = [...(product.validation_errors || []), ...errors];
-    }
-
-    if (warnings.length > 0) {
-      product.status = product.status === 'invalid' ? 'warning' : 'warning';
-      product.warnings = [...(product.warnings || []), ...warnings];
-    } else if (product.status === 'warning') {
-      product.status = 'valid';
-    }
-
-    return product;
   }
 
   private addSourceMetadata(product: ProductData): ProductData {

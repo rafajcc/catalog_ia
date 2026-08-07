@@ -73,19 +73,7 @@ export default function UploadSection({
       const parsed = await api.parseCSV(upload.file_id ?? '');
       const id = parsed?.data?.data_id ?? upload.file_id ?? '';
 
-      const invalidRows = parsed?.data?.invalid_rows ?? 0;
-      const rowErrors: any[] = parsed?.data?.row_errors ?? [];
-      if (invalidRows > 0) {
-        const details = Array.from(new Set(rowErrors.flat().map((error: any) => error?.message)))
-          .slice(0, 3)
-          .join('; ');
-        setMessage({
-          kind: 'warning',
-          text: `${t('upload.successUploaded', { name: csvFile.name })} ${t('upload.invalidRowsWarning', { count: invalidRows })}${details ? ` ${details}` : ''}`
-        });
-      } else {
-        setMessage({ kind: 'success', text: t('upload.successUploaded', { name: csvFile.name }) });
-      }
+      setMessage({ kind: 'success', text: t('upload.successUploaded', { name: csvFile.name }) });
 
       onCsvUploaded?.({ id: upload.file_id ?? '', name: csvFile.name });
       if (id) {

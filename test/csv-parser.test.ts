@@ -53,7 +53,7 @@ describe('CSVParser', () => {
   });
 
   describe('Field normalization', () => {
-    it('normalizes EAN values (8 or 13 digits) and flags invalid ones', async () => {
+    it('normalizes EAN values (8 or 13 digits) and keeps invalid ones for later validation', async () => {
       const result = await parseLines([
         'ean,reference,name,price,quantity',
         '1234567890123,REF-001,Test Product A,29.99,100',
@@ -62,8 +62,11 @@ describe('CSVParser', () => {
       ]);
 
       expect(result.total_rows).toBe(3);
-      expect(result.valid_rows).toBe(2);
-      expect(result.invalid_rows).toBe(1);
+      expect(result.valid_rows).toBe(3);
+      expect(result.invalid_rows).toBe(0);
+      expect(result.rows[0].normalized.ean).toBe('1234567890123');
+      expect(result.rows[1].normalized.ean).toBe('8901234567890');
+      expect(result.rows[2].normalized.ean).toBe('INVALID-EAN');
     });
 
     it('normalizes prices with currency symbols', async () => {
@@ -79,7 +82,7 @@ describe('CSVParser', () => {
       expect(result.invalid_rows).toBe(0);
     });
 
-    it('rejects prices with more than two decimals instead of rounding them', async () => {
+    it('keeps raw values for prices with more than two decimals so validation can flag them', async () => {
       const result = await parseLines([
         'ean,reference,name,price,wholesale_price,quantity',
         '1234567890123,REF-001,Product A,19.999,15.00,10',
@@ -87,11 +90,14 @@ describe('CSVParser', () => {
         '1234567890125,REF-003,Product C,20.00,14.55,10'
       ]);
 
-      expect(result.valid_rows).toBe(1);
-      expect(result.invalid_rows).toBe(2);
+      expect(result.valid_rows).toBe(3);
+      expect(result.invalid_rows).toBe(0);
+      expect(result.rows[0].normalized.price).toBe('19.999');
+      expect(result.rows[1].normalized.wholesale_price).toBe('14.555');
+      expect(result.rows[2].normalized.price).toBe(20);
     });
 
-    it('rejects non-integer quantities instead of truncating them', async () => {
+    it('keeps raw values for non-integer quantities so validation can flag them', async () => {
       const result = await parseLines([
         'ean,reference,name,quantity',
         '1234567890123,REF-001,Product A,10.7',
@@ -99,71 +105,25 @@ describe('CSVParser', () => {
         '1234567890125,REF-003,Product C,10'
       ]);
 
-      expect(result.valid_rows).toBe(1);
-      expect(result.invalid_rows).toBe(2);
+      expect(result.valid_rows).toBe(3);
+      expect(result.invalid_rows).toBe(0);
+      expect(result.rows[0].normalized.quantity).toBe('10.7');
+      expect(result.rows[1].normalized.quantity).toBe('abc');
+      expect(result.rows[2].normalized.quantity).toBe(10);
     });
 
-    it('rejects a row without an EAN as a missing required field', async () => {
+    it('does not reject rows during parsing: data validation happens on the validation screen', async () => {
       const result = await parseLines([
         'ean,reference,name,price',
         ',REF-001,Product A,10.00',
-        '1234567890123,REF-002,Product B,10.00'
+        '1234567890123,REF-002,Product B,10.00',
+        `1234567890124,${'R'.repeat(65)},Product C,10.00`
       ]);
 
-      expect(result.valid_rows).toBe(1);
-      expect(result.invalid_rows).toBe(1);
-      expect(result.rows[0].errors.some(e => e.field === 'ean' && e.code === 'MISSING_REQUIRED_FIELD')).toBe(true);
-    });
-
-    it('rejects a row without a reference as a missing required field', async () => {
-      const result = await parseLines([
-        'ean,reference,name,price',
-        '1234567890123,,Product A,10.00',
-        '1234567890124,REF-002,Product B,10.00'
-      ]);
-
-      expect(result.valid_rows).toBe(1);
-      expect(result.invalid_rows).toBe(1);
-      expect(result.rows[0].errors.some(e => e.field === 'reference' && e.code === 'MISSING_REQUIRED_FIELD')).toBe(true);
-    });
-
-    it('rejects a reference longer than 64 characters', async () => {
-      const result = await parseLines([
-        'ean,reference,name,price',
-        `1234567890123,${'R'.repeat(65)},Product A,10.00`,
-        '1234567890124,REF-002,Product B,10.00'
-      ]);
-
-      expect(result.valid_rows).toBe(1);
-      expect(result.invalid_rows).toBe(1);
-      expect(result.rows[0].errors.some(e => e.field === 'reference' && e.code === 'INVALID_REFERENCE')).toBe(true);
-    });
-  });
-
-  describe('Duplicate detection', () => {
-    it('flags rows that repeat the same EAN', async () => {
-      const result = await parseLines([
-        'ean,name,reference',
-        '1234567890123,Product A,REF-001',
-        '1234567890123,Product B,REF-002'
-      ]);
-
-      expect(result.total_rows).toBe(2);
-      expect(result.valid_rows).toBe(1);
-      expect(result.invalid_rows).toBe(1);
-    });
-
-    it('flags rows that repeat the same reference', async () => {
-      const result = await parseLines([
-        'ean,name,reference',
-        '1234567890123,Product A,REF-001',
-        '1234567890124,Product B,REF-001'
-      ]);
-
-      expect(result.total_rows).toBe(2);
-      expect(result.valid_rows).toBe(1);
-      expect(result.invalid_rows).toBe(1);
-      expect(result.rows[1].errors.some(e => e.code === 'DUPLICATE_VALUE' && e.field === 'reference')).toBe(true);
+      expect(result.total_rows).toBe(3);
+      expect(result.valid_rows).toBe(3);
+      expect(result.invalid_rows).toBe(0);
+      expect(result.rows.every(row => row.errors.length === 0)).toBe(true);
     });
   });
 });

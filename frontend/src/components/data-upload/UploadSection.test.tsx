@@ -62,36 +62,6 @@ describe('UploadSection', () => {
     expect(screen.getByText('CSV file uploaded: products.csv')).toBeInTheDocument();
   });
 
-  it('warns when the CSV contains rejected rows with their errors', async () => {
-    mockApi.uploadCSV.mockResolvedValue({ success: true, file_id: 'file-1' });
-    mockApi.parseCSV.mockResolvedValue({
-      success: true,
-      data: {
-        data_id: 'data-1',
-        invalid_rows: 2,
-        row_errors: [
-          [{ message: 'Price must be a non-negative number with at most 2 decimal places' }],
-          [{ message: 'Stock quantity must be a non-negative integer' }]
-        ]
-      }
-    });
-    const onDataReady = jest.fn();
-
-    renderWithI18n(<UploadSection onDataReady={onDataReady} />, 'en');
-
-    const user = userEvent.setup();
-    await user.upload(screen.getByLabelText(/Product catalog \(CSV\)/), makeFile('products.csv'));
-    await user.click(screen.getByRole('button', { name: /Upload CSV/ }));
-
-    expect(
-      await screen.findByText(/CSV file uploaded: products.csv — 2 row\(s\) rejected:/)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(content => content.includes('Price must be a non-negative number with at most 2 decimal places'))
-    ).toBeInTheDocument();
-    expect(onDataReady).toHaveBeenCalledWith('data-1');
-  });
-
   it('shows an error when the CSV upload fails', async () => {
     mockApi.uploadCSV.mockRejectedValue(new Error('upload failed'));
     const onDataReady = jest.fn();

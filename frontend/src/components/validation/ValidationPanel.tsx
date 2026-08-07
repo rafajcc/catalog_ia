@@ -106,7 +106,13 @@ export default function ValidationPanel({ dataId, csvFiles = [], autoLoad = fals
                   <td>{product.name}</td>
                   <td>{product.ean}</td>
                   <td>{product.reference}</td>
-                  <td>{(product.validation_errors ?? []).length}</td>
+                  <td
+                    title={(product.validation_errors ?? [])
+                      .map((e) => e.message)
+                      .join('\n')}
+                  >
+                    {(product.validation_errors ?? []).length}
+                  </td>
                 </tr>
               ))}
             </tbody>

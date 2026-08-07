@@ -22,7 +22,8 @@ export function getDefaultProductRules(): ValidationRule[] {
     { field: 'brand', type: 'string', max: 64 },
     { field: 'price', type: 'number', min: 0, decimals: 2 },
     { field: 'wholesale_price', type: 'number', min: 0, decimals: 2 },
-    { field: 'quantity', type: 'integer', min: 0 }
+    { field: 'quantity', type: 'integer', min: 0 },
+    { field: 'ean', type: 'ean' }
   ];
 }
 
@@ -157,8 +158,11 @@ export class ProductValidator {
       const productValue = product[checkField as keyof ProductData];
       if (!productValue) continue;
 
+      // Compare by object identity (not by id) so products that share an EAN or
+      // reference across different CSV files are flagged even when their derived
+      // ids collide (e.g. both resolve to `ean_<value>`).
       const duplicates = context.products.filter(p => {
-        if (p.id === product.id) return false;
+        if (p === product) return false;
         return p[checkField as keyof ProductData] === productValue;
       });
 

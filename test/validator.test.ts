@@ -148,6 +148,14 @@ describe('ProductValidator', () => {
 
       expect(ok.valid).toBe(true);
     });
+
+    it('rejects an EAN that is not 8 or 13 digits', () => {
+      const validator = makeValidator(getDefaultProductRules());
+      const invalid = validator.validateProduct(makeProduct({ ean: '12345' }));
+
+      expect(invalid.valid).toBe(false);
+      expect(invalid.errors![0].message).toBe('ean must be 8 or 13 digits');
+    });
   });
 
   describe('validateProduct - duplicates', () => {
@@ -161,6 +169,18 @@ describe('ProductValidator', () => {
         code: 'DUPLICATE_VALUE',
         message: "ean '1234567890123' already exists"
       });
+    });
+
+    it('flags duplicates even when the products share the same derived id', () => {
+      // Products from different CSV files can resolve to the same id (ean_<value>).
+      const fromFileA = makeProduct({ id: 'ean_1234567890123' });
+      const fromFileB = makeProduct({ id: 'ean_1234567890123', name: 'Twin from second file' });
+      const result = makeValidator([], [], ['ean']).validateProduct(fromFileB, {
+        products: [fromFileA, fromFileB]
+      });
+
+      expect(result.valid).toBe(false);
+      expect(result.errors!.some(e => e.code === 'DUPLICATE_VALUE' && e.field === 'ean')).toBe(true);
     });
 
     it('does not flag the product itself as a duplicate', () => {

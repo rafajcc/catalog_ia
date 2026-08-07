@@ -9,7 +9,6 @@ import {
   CSVConfig,
   CSVResult,
   ProductField,
-  ValidationError,
   ProductData
 } from '../../types';
 
@@ -151,17 +150,14 @@ export class CSVParser {
       const rawValues = this.parseLine(line);
       const raw = this.mapToObject(headers, rawValues);
       const normalized = this.normalizeRow(rawValues, headers);
-      const errors = this.validateRow(normalized, raw);
 
       rows.push({
         raw,
         normalized,
-        errors,
+        errors: [],
         warnings: []
       });
     }
-
-    this.markDuplicates(rows);
 
     return rows;
   }
@@ -235,12 +231,13 @@ export class CSVParser {
     const cleaned = value.replace(/[^0-9]/g, '');
     if (cleaned.length === 13) return cleaned;
     if (cleaned.length === 8) return cleaned;
-    return undefined;
+    // Keep the raw value so the validation screen can flag the format error.
+    return value.trim() || undefined;
   }
 
-  private parsePrice(value: string): number | undefined {
+  private parsePrice(value: string): number | string | undefined {
     const cleaned = value.replace(/[^0-9.,]/g, '');
-    if (!cleaned) return undefined;
+    if (!cleaned) return value.trim() || undefined;
 
     // Resolve comma/dot ambiguity: with both separators the last one is the
     // decimal separator and the other one a thousands separator.
@@ -255,17 +252,19 @@ export class CSVParser {
 
     // Prices are not rounded: more than 2 decimal places is an error.
     const [, fraction = ''] = normalized.split('.');
-    if (fraction.length > 2) return undefined;
+    if (fraction.length > 2) return value.trim();
 
     const number = parseFloat(normalized);
-    return isNaN(number) || number < 0 ? undefined : number;
+    if (isNaN(number) || number < 0) return value.trim();
+    return number;
   }
 
-  private parseQuantity(value: string): number | undefined {
+  private parseQuantity(value: string): number | string | undefined {
     // Quantities are not truncated: only non-negative integers are accepted.
-    if (!/^\d+$/.test(value.trim())) return undefined;
+    if (!/^\d+$/.test(value.trim())) return value.trim() || undefined;
     const number = parseInt(value.trim(), 10);
-    return isNaN(number) || number < 0 ? undefined : number;
+    if (isNaN(number) || number < 0) return value.trim();
+    return number;
   }
 
   private mapToObject(headers: string[], values: string[]): Record<string, string> {
@@ -274,125 +273,5 @@ export class CSVParser {
       obj[headers[i]] = values[i];
     }
     return obj;
-  }
-
-  private validateRow(row: Partial<ProductData>, raw: Record<string, string>): ValidationError[] {
-    const errors: ValidationError[] = [];
-
-    if (!row.name) {
-      errors.push({
-        field: 'name',
-        message: 'Product name is required',
-        code: 'MISSING_REQUIRED_FIELD',
-        severity: 'error',
-        value: row.name
-      });
-    }
-
-    const rawEan = (raw['ean'] || raw['ean13'] || '').trim();
-    if (!rawEan) {
-      errors.push({
-        field: 'ean',
-        message: 'EAN is required',
-        code: 'MISSING_REQUIRED_FIELD',
-        severity: 'error',
-        value: row.ean
-      });
-    } else if (!row.ean) {
-      errors.push({
-        field: 'ean',
-        message: 'Invalid EAN format (must be 8 or 13 digits)',
-        code: 'INVALID_EAN',
-        severity: 'error',
-        value: rawEan
-      });
-    }
-
-    const rawReference = (raw['reference'] || '').trim();
-    if (!rawReference) {
-      errors.push({
-        field: 'reference',
-        message: 'Product reference is required',
-        code: 'MISSING_REQUIRED_FIELD',
-        severity: 'error',
-        value: row.reference
-      });
-    } else if (rawReference.length > 64) {
-      errors.push({
-        field: 'reference',
-        message: 'Reference must be at most 64 characters',
-        code: 'INVALID_REFERENCE',
-        severity: 'error',
-        value: rawReference
-      });
-    }
-
-    const rawPrice = (raw['price'] || '').trim();
-    if (rawPrice && row.price === undefined) {
-      errors.push({
-        field: 'price',
-        message: 'Price must be a non-negative number with at most 2 decimal places',
-        code: 'INVALID_PRICE',
-        severity: 'error',
-        value: rawPrice
-      });
-    }
-
-    const rawWholesalePrice = (raw['wholesale_price'] || '').trim();
-    if (rawWholesalePrice && row.wholesale_price === undefined) {
-      errors.push({
-        field: 'wholesale_price',
-        message: 'Wholesale price must be a non-negative number with at most 2 decimal places',
-        code: 'INVALID_PRICE',
-        severity: 'error',
-        value: rawWholesalePrice
-      });
-    }
-
-    const rawQuantity = (raw['quantity'] || '').trim();
-    if (rawQuantity && row.quantity === undefined) {
-      errors.push({
-        field: 'quantity',
-        message: 'Stock quantity must be a non-negative integer',
-        code: 'INVALID_QUANTITY',
-        severity: 'error',
-        value: rawQuantity
-      });
-    }
-
-    return errors;
-  }
-
-  private markDuplicates(rows: ParsedRow[]): void {
-    const seen = new Map<string, number>();
-
-    rows.forEach((row, index) => {
-      const keys: Array<{ field: string; key: string }> = [];
-      if (row.normalized.ean) keys.push({ field: 'ean', key: `ean:${row.normalized.ean}` });
-      if (row.normalized.ean13) keys.push({ field: 'ean', key: `ean:${row.normalized.ean13}` });
-      if (row.normalized.reference) keys.push({ field: 'reference', key: `ref:${row.normalized.reference}` });
-
-      for (const entry of keys) {
-        if (seen.has(entry.key)) {
-          const label = entry.field === 'ean' ? 'EAN' : 'reference';
-          const value = entry.key.split(':')[1];
-          row.errors.push({
-            field: entry.field,
-            message: `Duplicate ${label} '${value}' already exists in this file`,
-            code: 'DUPLICATE_VALUE',
-            severity: 'error',
-            value
-          });
-        } else {
-          seen.set(entry.key, index);
-        }
-      }
-    });
-  }
-
-  private validateEAN(ean: string): boolean {
-    if (!ean) return false;
-    const cleaned = ean.replace(/[^0-9]/g, '');
-    return [8, 13].includes(cleaned.length);
   }
 }

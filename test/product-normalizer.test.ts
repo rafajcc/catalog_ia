@@ -92,40 +92,23 @@ describe('ProductNormalizer', () => {
     });
   });
 
-  describe('Required field validation', () => {
-    it('marks a product missing its name as invalid', () => {
+  describe('Data validation is deferred to the validation screen', () => {
+    it('leaves every normalized product as pending without validation errors', () => {
       const product = normalizer().normalizeSingleProduct(
         makeRow({ ean: '1234567890123', reference: 'REF-1', price: 10, quantity: 5 })
       )!;
 
-      expect(product.status).toBe('invalid');
-      expect(product.validation_errors).toContainEqual(expect.objectContaining({ field: 'name', code: 'MISSING_REQUIRED_FIELD' }));
+      expect(product.status).toBe('pending');
+      expect(product.validation_errors).toEqual([]);
+      expect(product.warnings).toEqual([]);
     });
 
-    it('sets a warning status when a product has errors and warnings', () => {
-      const product = normalizer().normalizeSingleProduct(makeRow({ ean: '1234567890123' }))!;
-
-      expect(product.status).toBe('warning');
-      expect(product.validation_errors.some(e => e.field === 'name')).toBe(true);
-      expect(product.warnings).toContain('Product missing price - will keep the existing store price');
-    });
-
-    it('adds warnings for missing price and stock, and errors for missing identifiers', () => {
+    it('does not flag products with missing required fields during normalization', () => {
       const product = normalizer().normalizeSingleProduct(makeRow({ name: 'A' }))!;
-
-      expect(product.warnings).toContain('Product missing price - will keep the existing store price');
-      expect(product.warnings).toContain('Product missing stock quantity - will keep the existing store stock');
-      expect(product.validation_errors.some(e => e.field === 'ean' && e.code === 'MISSING_REQUIRED_FIELD')).toBe(true);
-      expect(product.validation_errors.some(e => e.field === 'reference' && e.code === 'MISSING_REQUIRED_FIELD')).toBe(true);
-    });
-
-    it('leaves a fully populated product as pending', () => {
-      const product = normalizer().normalizeSingleProduct(
-        makeRow({ name: 'A', ean: '1234567890123', reference: 'REF-1', price: 10, quantity: 5 })
-      )!;
 
       expect(product.status).toBe('pending');
       expect(product.validation_errors).toEqual([]);
+      expect(product.warnings).toEqual([]);
     });
   });
 

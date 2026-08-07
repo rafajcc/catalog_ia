@@ -466,12 +466,6 @@ export function createApiRouter(deps: RouteDependencies): Router {
 
       const normalizer = new ProductNormalizer();
       const products = normalizer.normalizeProducts(csvResult.rows);
-      if (products.length === 0) {
-        throw new AppError(
-          `No products could be extracted from "${uploaded.originalName}": ${csvResult.invalid_rows} of ${csvResult.total_rows} row(s) had errors. Check that the file has the required columns.`,
-          400
-        );
-      }
 
       const dataId = fileId;
       store.datasets.set(dataId, {
@@ -483,15 +477,12 @@ export function createApiRouter(deps: RouteDependencies): Router {
         totalRows: csvResult.total_rows
       });
 
-      const invalidRows = csvResult.rows.filter((row) => row.errors.length > 0);
       res.json({
         success: true,
         message: 'CSV parsed successfully',
         data: {
           data_id: dataId,
           products,
-          invalid_rows: invalidRows.length,
-          row_errors: invalidRows.map((row) => row.errors),
           summary: { total: products.length }
         }
       });
@@ -512,8 +503,13 @@ export function createApiRouter(deps: RouteDependencies): Router {
     '/validate/products/:dataId',
     wrap(async (req, res) => {
       const dataset = requireDataset(store, req.params.dataId);
-      const requiredFields = store.config.validation.required_fields || ['name'];
-      const validator = new ProductValidator(getDefaultProductRules(), requiredFields);
+      const baseRequired = ['name', 'ean', 'reference'];
+      const configured = store.config.validation.required_fields || [];
+      const requiredFields = Array.from(new Set([...baseRequired, ...configured]));
+      // Data validation (required fields, formats, duplicates) runs here over the
+      // merged dataset from every uploaded CSV, so duplicates are detected across
+      // files, not just within a single file.
+      const validator = new ProductValidator(getDefaultProductRules(), requiredFields, ['ean', 'reference']);
 
       const products = dataset.products.map((product) => {
         const result = validator.validateProduct(product, { products: dataset.products });
