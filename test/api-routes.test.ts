@@ -55,6 +55,7 @@ describe('API routes', () => {
       fetchStockByIds: jest.fn().mockResolvedValue([{ id: '50', quantity: 7 }, { id: '51', quantity: 2 }]),
       fetchProductsByReference: jest.fn().mockResolvedValue([]),
       fetchCombinationsByIds: jest.fn().mockResolvedValue([]),
+      fetchAllProducts: jest.fn().mockResolvedValue([]),
       fetchManufacturers: jest.fn().mockResolvedValue([{ id: '3', name: 'Marca Uno' }]),
       fetchCategories: jest.fn().mockResolvedValue([{ id: '8', name: 'Categoria Uno' }]),
       updateProductFields: jest.fn().mockResolvedValue({ success: true, operation: 'update_product', errors: [], warnings: [], timestamp: new Date() }),
@@ -518,15 +519,33 @@ describe('API routes', () => {
     expect(res.body.error.message).toContain('configured');
   });
 
-  it('rejects fetching from PrestaShop without EANs or references', async () => {
+  it('fetches the first products when no EAN or reference is given, applying the filters', async () => {
     const fakeClient = makeConsistencyFakeClient();
+    (fakeClient.fetchAllProducts as jest.Mock).mockResolvedValue([
+      { id: '5', name: 'Con desc', description: 'Larga', image_count: 2, combination_ids: ['11'], categories: [] },
+      { id: '6', name: 'Sin desc', image_count: 0, combination_ids: ['12'], categories: [] }
+    ]);
+    (fakeClient.fetchCombinationsByIds as jest.Mock).mockResolvedValue([
+      { id_product_attribute: '11', id_product: '5', reference: 'REF-A', stock_available_id: '50' },
+      { id_product_attribute: '12', id_product: '6', reference: 'REF-B', stock_available_id: '51' }
+    ]);
+    (fakeClient.fetchProductsById as jest.Mock).mockResolvedValue([
+      { id: '5', name: 'Con desc', description: 'Larga', image_count: 2, categories: [] },
+      { id: '6', name: 'Sin desc', image_count: 0, categories: [] }
+    ]);
     const app = makeApp({ fakePrestashop: true, prestashopClient: fakeClient });
     await configurePrestashop(app);
 
-    const res = await request(app).post('/api/fetch/prestashop').send({ eans: [], references: [] });
+    const res = await request(app)
+      .post('/api/fetch/prestashop')
+      .send({ eans: [], references: [], description: 'with', images: 'with' });
 
-    expect(res.status).toBe(400);
-    expect(res.body.error.message).toContain('EAN or one reference');
+    expect(res.status).toBe(200);
+    expect(res.body.data.products).toHaveLength(1);
+    expect(res.body.data.products[0].reference).toBe('REF-A');
+    expect(fakeClient.fetchAllProducts).toHaveBeenCalled();
+    expect(fakeClient.fetchCombinationsByEan).not.toHaveBeenCalled();
+    expect(fakeClient.fetchProductsByReference).not.toHaveBeenCalled();
   });
 
   it('fetches products from PrestaShop by EAN, replacing the uploaded CSVs', async () => {

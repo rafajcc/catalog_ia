@@ -228,6 +228,17 @@ export class PrestaShopClient {
     return results;
   }
 
+  // Fetches the first `limit` products of the store (display=full), used when
+  // fetching without any EAN or reference criteria.
+  async fetchAllProducts(limit: number): Promise<PrestaShopProductInfo[]> {
+    const root = await this.getResourceList(this.endpoints.products, {
+      display: 'full',
+      limit
+    });
+    const nodes = this.toArray(root?.products?.product);
+    return nodes.map((node) => this.extractProductInfo(node));
+  }
+
   // Fetches the combinations matching any of the given combination ids.
   async fetchCombinationsByIds(ids: string[]): Promise<PrestaShopCombinationInfo[]> {
     const unique = Array.from(new Set(ids.filter(Boolean)));

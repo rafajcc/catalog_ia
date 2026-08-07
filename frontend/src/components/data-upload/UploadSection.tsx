@@ -242,10 +242,6 @@ export default function UploadSection({
       .split(/[\n,;]+/)
       .map((value) => value.trim())
       .filter(Boolean);
-    if (eans.length === 0 && references.length === 0) {
-      setMessage({ kind: 'error', text: t('upload.prestashopNoCriteria') });
-      return;
-    }
     if (uploadedCsvs.length > 0) {
       const proceed = window.confirm(t('upload.prestashopConflictCsv'));
       if (!proceed) return;
@@ -282,9 +278,6 @@ export default function UploadSection({
       }
       if (message.includes('No products matched')) {
         return t('upload.prestashopNoMatch');
-      }
-      if (message.includes('Provide at least one')) {
-        return t('upload.prestashopNoCriteria');
       }
     }
     return getErrorMessage(error);

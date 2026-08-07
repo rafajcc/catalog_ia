@@ -733,6 +733,43 @@ describe('PrestaShopClient', () => {
     });
   });
 
+  describe('fetchAllProducts', () => {
+    it('fetches the first products of the store with the given limit', async () => {
+      const fake = makeFakeClient();
+      fake.get.mockResolvedValue({
+        data: `<prestashop>
+          <products>
+            <product id="9">
+              <reference><![CDATA[REF-1]]></reference>
+              <associations>
+                <combinations>
+                  <combination id="11" xlink:href="https://shop.example.com/api/combinations/11"/>
+                </combinations>
+                <images>
+                  <image id="30" xlink:href="https://shop.example.com/api/images/products/9/30"/>
+                </images>
+              </associations>
+            </product>
+          </products>
+        </prestashop>`
+      });
+      const client = makeClient(fake);
+
+      const result = await client.fetchAllProducts(200);
+
+      expect(fake.get).toHaveBeenCalledWith('/api/products', {
+        params: { display: 'full', limit: 200 }
+      });
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        id: '9',
+        reference: 'REF-1',
+        combination_ids: ['11'],
+        image_count: 1
+      });
+    });
+  });
+
   describe('fetchManufacturers', () => {
     it('returns the id and localized name of every manufacturer', async () => {
       const fake = makeFakeClient();

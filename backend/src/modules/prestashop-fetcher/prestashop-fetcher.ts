@@ -4,7 +4,8 @@
 // is one combination (id_product_attribute):
 // - EANs resolve to combinations through the combinations resource;
 // - references resolve to products whose combinations are then fetched by id
-//   (a product without combinations produces no row).
+//   (a product without combinations produces no row);
+// - without EANs or references, the first products of the store are imported.
 // Product-level values (name, descriptions, brand, category, tax) come from the
 // parent product; price and stock come from the combination.
 
@@ -27,6 +28,11 @@ export interface PrestaShopFetchOptions {
 
 export const PRESTASHOP_FETCH_LIMIT = 50;
 
+// Product pool fetched when no EAN or reference is provided: it bounds the
+// request while leaving headroom for the description/images filters to discard
+// products before their combinations are resolved.
+const PRESTASHOP_FETCH_POOL = 200;
+
 // The Home root category id in a default PrestaShop install. It is assigned to
 // every product, so it is never a meaningful "category" for the user.
 const ROOT_CATEGORY_ID = '2';
@@ -46,18 +52,27 @@ export class PrestaShopFetcher {
       new Set((options.references ?? []).map((reference) => reference.trim()).filter(Boolean))
     );
 
-    if (eans.length === 0 && references.length === 0) return [];
-
     // 1. Gather every combination of interest.
     const combinations = new Map<string, PrestaShopCombinationInfo>();
-    for (const combination of await this.client.fetchCombinationsByEan(eans)) {
-      combinations.set(combination.id_product_attribute, combination);
-    }
-    if (references.length > 0) {
-      const products = await this.client.fetchProductsByReference(references);
-      const combinationIds = Array.from(new Set(products.flatMap((product) => product.combination_ids ?? [])));
+    if (eans.length === 0 && references.length === 0) {
+      const products = await this.client.fetchAllProducts(PRESTASHOP_FETCH_POOL);
+      const matchingProducts = products.filter((product) => this.matches(product, options));
+      const combinationIds = Array.from(
+        new Set(matchingProducts.flatMap((product) => product.combination_ids ?? []))
+      );
       for (const combination of await this.client.fetchCombinationsByIds(combinationIds)) {
         combinations.set(combination.id_product_attribute, combination);
+      }
+    } else {
+      for (const combination of await this.client.fetchCombinationsByEan(eans)) {
+        combinations.set(combination.id_product_attribute, combination);
+      }
+      if (references.length > 0) {
+        const products = await this.client.fetchProductsByReference(references);
+        const combinationIds = Array.from(new Set(products.flatMap((product) => product.combination_ids ?? [])));
+        for (const combination of await this.client.fetchCombinationsByIds(combinationIds)) {
+          combinations.set(combination.id_product_attribute, combination);
+        }
       }
     }
 

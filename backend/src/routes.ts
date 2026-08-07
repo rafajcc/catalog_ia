@@ -474,10 +474,6 @@ export function createApiRouter(deps: RouteDependencies): Router {
         .filter(Boolean);
       const normalizedReferences = references.map((reference) => String(reference).trim()).filter(Boolean);
 
-      if (normalizedEans.length === 0 && normalizedReferences.length === 0) {
-        throw new AppError('Provide at least one EAN or one reference', 400);
-      }
-
       const client = buildPrestashopClient(deps, prestashop);
       const fetcher = new PrestaShopFetcher(client);
       const products = await fetcher.fetch({

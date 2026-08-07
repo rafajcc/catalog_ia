@@ -462,14 +462,27 @@ describe('UploadSection', () => {
     confirmSpy.mockRestore();
   });
 
-  it('requires at least one EAN or reference before fetching', async () => {
-    renderWithI18n(<UploadSection />, 'en');
+  it('fetches the first products when no EAN or reference is given', async () => {
+    mockApi.fetchPrestashopData.mockResolvedValue({
+      success: true,
+      data: { data_id: 'ps-1', summary: { total: 5 } }
+    });
+    const onPrestashopReady = jest.fn();
+
+    renderWithI18n(<UploadSection onPrestashopReady={onPrestashopReady} />, 'en');
 
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Fetch from PrestaShop' }));
 
-    expect(screen.getByText('Enter at least one EAN or one reference')).toBeInTheDocument();
-    expect(mockApi.fetchPrestashopData).not.toHaveBeenCalled();
+    await waitFor(() => expect(onPrestashopReady).toHaveBeenCalledWith('ps-1', 5));
+    expect(mockApi.fetchPrestashopData).toHaveBeenCalledWith({
+      eans: [],
+      references: [],
+      description: 'all',
+      images: 'all',
+      limit: 50
+    });
+    expect(await screen.findByText('Imported 5 products from PrestaShop')).toBeInTheDocument();
   });
 
   it('shows a friendly error when PrestaShop is not configured', async () => {
