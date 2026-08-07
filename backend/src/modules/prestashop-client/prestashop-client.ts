@@ -75,13 +75,32 @@ export class PrestaShopClient {
         // accept a Bearer token.
         const credentials = Buffer.from(`${this.config.api_key}:`).toString('base64');
         config.headers['Authorization'] = `Basic ${credentials}`;
+
+        // Log every Webservice call so the development backend log shows the
+        // requests (method, full URL and query params) sent to PrestaShop.
+        const params = config.params as Record<string, unknown> | undefined;
+        const query =
+          params && Object.keys(params).length > 0
+            ? `?${new URLSearchParams(Object.entries(params).map(([key, value]): [string, string] => [key, String(value)])).toString()}`
+            : '';
+        logger.info('PrestaShop API request', {
+          method: (config.method ?? 'get').toUpperCase(),
+          url: `${config.baseURL ?? ''}${config.url ?? ''}${query}`
+        });
+
         return config;
       },
       (error) => Promise.reject(error)
     );
 
     this.client.interceptors.response.use(
-      (response) => response,
+      (response) => {
+        logger.info('PrestaShop API response', {
+          status: response.status,
+          url: `${response.config?.baseURL ?? ''}${response.config?.url ?? ''}`
+        });
+        return response;
+      },
       async (error) => {
         const { response } = error;
 
@@ -306,6 +325,34 @@ export class PrestaShopClient {
         return { id: stock.id, quantity: stock.quantity };
       });
       results.push(...entries.filter((entry) => !!entry.id).map((entry) => ({ id: entry.id as string, quantity: entry.quantity })));
+    }
+
+    return results;
+  }
+
+  // Fetches the stock quantity of every product without combinations (simple
+  // products have no stock_available association on the product, so the stock
+  // is resolved by the product id instead).
+  async fetchStockByProductIds(ids: string[]): Promise<Array<{ id_product: string; quantity?: number }>> {
+    const unique = Array.from(new Set(ids.filter(Boolean)));
+    const results: Array<{ id_product: string; quantity?: number }> = [];
+
+    for (const batch of this.chunk(unique, this.BATCH_SIZE)) {
+      const root = await this.getResourceList(this.endpoints.stock_availables, {
+        'filter[id_product]': `[${batch.join('|')}]`,
+        display: 'full',
+        limit: 1000
+      });
+      const nodes = this.toArray(root?.stock_availables?.stock_available);
+      const entries: Array<{ id_product?: string; quantity?: number }> = nodes.map((node) => {
+        const stock = this.extractStockAvailable(node);
+        return { id_product: stock.id_product, quantity: stock.quantity };
+      });
+      results.push(
+        ...entries
+          .filter((entry) => !!entry.id_product)
+          .map((entry) => ({ id_product: entry.id_product as string, quantity: entry.quantity }))
+      );
     }
 
     return results;

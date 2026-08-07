@@ -1,13 +1,15 @@
 // PrestaShop Fetcher Module
 // Builds a working dataset (ProductData[]) directly from PrestaShop's
 // Webservice as an alternative data source to uploading a CSV. Each fetched row
-// is one combination (id_product_attribute):
+// is one variant:
 // - EANs resolve to combinations through the combinations resource;
-// - references resolve to products whose combinations are then fetched by id
-//   (a product without combinations produces no row);
+// - references resolve to products whose combinations are then fetched by id;
 // - without EANs or references, the first products of the store are imported.
-// Product-level values (name, descriptions, brand, category, tax) come from the
-// parent product; price and stock come from the combination.
+// A product without combinations produces a single product-level row (price,
+// stock and reference come from the product itself), while a product with
+// combinations produces one row per combination (price and stock come from the
+// combination). Product-level values (name, descriptions, brand, category, tax)
+// always come from the parent product.
 
 import {
   PrestaShopCombinationInfo,
@@ -52,33 +54,46 @@ export class PrestaShopFetcher {
       new Set((options.references ?? []).map((reference) => reference.trim()).filter(Boolean))
     );
 
-    // 1. Gather every combination of interest.
+    // 1. Gather every variant (combination or simple product) of interest.
     const combinations = new Map<string, PrestaShopCombinationInfo>();
+    const simpleProducts: PrestaShopProductInfo[] = [];
+
     if (eans.length === 0 && references.length === 0) {
-      const products = await this.client.fetchAllProducts(PRESTASHOP_FETCH_POOL);
-      const matchingProducts = products.filter((product) => this.matches(product, options));
-      const combinationIds = Array.from(
-        new Set(matchingProducts.flatMap((product) => product.combination_ids ?? []))
+      const products = (await this.client.fetchAllProducts(PRESTASHOP_FETCH_POOL)).filter((product) =>
+        this.matches(product, options)
       );
-      for (const combination of await this.client.fetchCombinationsByIds(combinationIds)) {
-        combinations.set(combination.id_product_attribute, combination);
+      for (const product of products) {
+        if ((product.combination_ids?.length ?? 0) > 0) {
+          for (const combination of await this.client.fetchCombinationsByIds(product.combination_ids ?? [])) {
+            combinations.set(combination.id_product_attribute, combination);
+          }
+        } else {
+          simpleProducts.push(product);
+        }
       }
     } else {
       for (const combination of await this.client.fetchCombinationsByEan(eans)) {
         combinations.set(combination.id_product_attribute, combination);
       }
       if (references.length > 0) {
-        const products = await this.client.fetchProductsByReference(references);
-        const combinationIds = Array.from(new Set(products.flatMap((product) => product.combination_ids ?? [])));
-        for (const combination of await this.client.fetchCombinationsByIds(combinationIds)) {
-          combinations.set(combination.id_product_attribute, combination);
+        for (const product of await this.client.fetchProductsByReference(references)) {
+          if ((product.combination_ids?.length ?? 0) > 0) {
+            for (const combination of await this.client.fetchCombinationsByIds(product.combination_ids ?? [])) {
+              combinations.set(combination.id_product_attribute, combination);
+            }
+          } else {
+            simpleProducts.push(product);
+          }
         }
       }
     }
 
     // 2. Product-level data for every parent product.
     const productIds = Array.from(
-      new Set([...combinations.values()].map((combination) => combination.id_product).filter(Boolean))
+      new Set([
+        ...[...combinations.values()].map((combination) => combination.id_product),
+        ...simpleProducts.map((product) => product.id)
+      ].filter((id): id is string => !!id))
     );
     const productsById = new Map(
       (await this.client.fetchProductsById(productIds)).map((product) => [product.id, product])
@@ -90,7 +105,8 @@ export class PrestaShopFetcher {
     );
     const categoryNames = new Map((await this.client.fetchCategories()).map((entry) => [entry.id, entry.name]));
 
-    // 4. Stock quantities for every combination's stock_available.
+    // 4. Stock: combinations are keyed by their stock_available id, simple
+    // products by their product id.
     const stockIds = Array.from(
       new Set(
         [...combinations.values()]
@@ -101,15 +117,27 @@ export class PrestaShopFetcher {
     const stockById = new Map(
       (await this.client.fetchStockByIds(stockIds)).map((entry) => [entry.id, entry.quantity])
     );
+    const stockByProductId = new Map(
+      (
+        await this.client.fetchStockByProductIds(
+          simpleProducts.map((product) => product.id).filter((id): id is string => !!id)
+        )
+      ).map((entry) => [entry.id_product, entry.quantity])
+    );
 
-    // 5. Build and filter the rows.
+    // 5. Build and filter the rows, combination rows first.
     const limit = Math.min(Math.max(1, options.limit || PRESTASHOP_FETCH_LIMIT), PRESTASHOP_FETCH_LIMIT);
     const rows: ProductData[] = [];
     for (const combination of combinations.values()) {
       const product = productsById.get(combination.id_product);
       if (!this.matches(product, options)) continue;
-      rows.push(this.toProductData(combination, product, manufacturerNames, categoryNames, stockById));
+      rows.push(this.toCombinationData(combination, product, manufacturerNames, categoryNames, stockById));
       if (rows.length >= limit) break;
+    }
+    for (const product of simpleProducts) {
+      if (rows.length >= limit) break;
+      if (!this.matches(product, options)) continue;
+      rows.push(this.toProductData(product, stockByProductId.get(product.id), manufacturerNames, categoryNames));
     }
     return rows;
   }
@@ -126,30 +154,46 @@ export class PrestaShopFetcher {
     return true;
   }
 
-  private toProductData(
+  private toCombinationData(
     combination: PrestaShopCombinationInfo,
     product: PrestaShopProductInfo | undefined,
     manufacturerNames: Map<string, string | undefined>,
     categoryNames: Map<string, string | undefined>,
     stockById: Map<string, number | undefined>
   ): ProductData {
-    const quantity = combination.stock_available_id
-      ? stockById.get(combination.stock_available_id)
-      : undefined;
-
+    const row = this.toProductData(product, undefined, manufacturerNames, categoryNames);
     return {
+      ...row,
       id: `ps_${combination.id_product_attribute}`,
+      reference: combination.reference ?? product?.reference,
+      ean: combination.ean13 ?? product?.ean13,
+      price: combination.price ?? product?.price,
+      wholesale_price: combination.wholesale_price ?? product?.wholesale_price,
+      quantity: combination.stock_available_id
+        ? stockById.get(combination.stock_available_id)
+        : undefined
+    };
+  }
+
+  private toProductData(
+    product: PrestaShopProductInfo | undefined,
+    quantity: number | undefined,
+    manufacturerNames: Map<string, string | undefined>,
+    categoryNames: Map<string, string | undefined>
+  ): ProductData {
+    return {
+      id: `ps_p${product?.id ?? ''}`,
       status: 'pending',
       source_file: 'prestashop',
       validation_errors: [],
       warnings: [],
       name: product?.name ?? '',
-      reference: combination.reference ?? product?.reference,
-      ean: combination.ean13 ?? product?.ean13,
+      reference: product?.reference,
+      ean: product?.ean13,
       description: product?.description,
       description_short: product?.description_short,
-      price: combination.price ?? product?.price,
-      wholesale_price: combination.wholesale_price ?? product?.wholesale_price,
+      price: product?.price,
+      wholesale_price: product?.wholesale_price,
       quantity,
       brand: product?.manufacturer_id ? manufacturerNames.get(product.manufacturer_id) : undefined,
       category: this.pickCategory(product, categoryNames),

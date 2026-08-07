@@ -53,6 +53,7 @@ describe('API routes', () => {
         { id: '5', name: 'Producto', description: 'Desc', tax_rules_group_id: 5, manufacturer_id: '3', categories: [] }
       ]),
       fetchStockByIds: jest.fn().mockResolvedValue([{ id: '50', quantity: 7 }, { id: '51', quantity: 2 }]),
+      fetchStockByProductIds: jest.fn().mockResolvedValue([]),
       fetchProductsByReference: jest.fn().mockResolvedValue([]),
       fetchCombinationsByIds: jest.fn().mockResolvedValue([]),
       fetchAllProducts: jest.fn().mockResolvedValue([]),
@@ -546,6 +547,60 @@ describe('API routes', () => {
     expect(fakeClient.fetchAllProducts).toHaveBeenCalled();
     expect(fakeClient.fetchCombinationsByEan).not.toHaveBeenCalled();
     expect(fakeClient.fetchProductsByReference).not.toHaveBeenCalled();
+  });
+
+  it('imports products without combinations as product-level rows when no criteria are given', async () => {
+    const fakeClient = makeConsistencyFakeClient();
+    (fakeClient.fetchAllProducts as jest.Mock).mockResolvedValue([
+      { id: '5', name: 'Simple', reference: 'REF-S', price: 9.99, image_count: 1, categories: ['8'] },
+      { id: '6', name: 'Con combos', image_count: 1, combination_ids: ['11'], categories: [] }
+    ]);
+    (fakeClient.fetchCombinationsByIds as jest.Mock).mockResolvedValue([
+      { id_product_attribute: '11', id_product: '6', reference: 'REF-C', stock_available_id: '50' }
+    ]);
+    (fakeClient.fetchProductsById as jest.Mock).mockResolvedValue([
+      { id: '5', name: 'Simple', reference: 'REF-S', price: 9.99, image_count: 1, categories: ['8'] },
+      { id: '6', name: 'Con combos', image_count: 1, categories: [] }
+    ]);
+    (fakeClient.fetchStockByProductIds as jest.Mock).mockResolvedValue([{ id_product: '5', quantity: 4 }]);
+    const app = makeApp({ fakePrestashop: true, prestashopClient: fakeClient });
+    await configurePrestashop(app);
+
+    const res = await request(app).post('/api/fetch/prestashop').send({ eans: [], references: [] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.products).toHaveLength(2);
+    expect(res.body.data.products[0]).toMatchObject({
+      id: 'ps_11',
+      source_file: 'prestashop',
+      reference: 'REF-C',
+      quantity: 7
+    });
+    expect(res.body.data.products[1]).toMatchObject({
+      id: 'ps_p5',
+      source_file: 'prestashop',
+      reference: 'REF-S',
+      price: 9.99,
+      quantity: 4,
+      category: 'Categoria Uno'
+    });
+    expect(fakeClient.fetchStockByProductIds).toHaveBeenCalledWith(['5']);
+  });
+
+  it('returns 404 when the no-criteria fetch finds nothing to import', async () => {
+    const fakeClient = makeConsistencyFakeClient();
+    (fakeClient.fetchAllProducts as jest.Mock).mockResolvedValue([
+      { id: '5', name: 'Filtrado', image_count: 0, categories: [] }
+    ]);
+    const app = makeApp({ fakePrestashop: true, prestashopClient: fakeClient });
+    await configurePrestashop(app);
+
+    const res = await request(app)
+      .post('/api/fetch/prestashop')
+      .send({ eans: [], references: [], images: 'with' });
+
+    expect(res.status).toBe(404);
+    expect(res.body.error.message).toContain('No products matched');
   });
 
   it('fetches products from PrestaShop by EAN, replacing the uploaded CSVs', async () => {

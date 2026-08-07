@@ -666,6 +666,30 @@ describe('PrestaShopClient', () => {
     });
   });
 
+  describe('fetchStockByProductIds', () => {
+    it('returns the stock quantity for each product id', async () => {
+      const fake = makeFakeClient();
+      fake.get.mockResolvedValue({
+        data: `<prestashop>
+          <stock_availables>
+            <stock_available id="70">
+              <id_product><![CDATA[5]]></id_product>
+              <quantity><![CDATA[4]]></quantity>
+            </stock_available>
+          </stock_availables>
+        </prestashop>`
+      });
+      const client = makeClient(fake);
+
+      const result = await client.fetchStockByProductIds(['5']);
+
+      expect(fake.get).toHaveBeenCalledWith('/api/stock_availables', {
+        params: { 'filter[id_product]': '[5]', display: 'full', limit: 1000 }
+      });
+      expect(result).toEqual([{ id_product: '5', quantity: 4 }]);
+    });
+  });
+
   describe('fetchProductsByReference', () => {
     it('fetches full product data for the given references with an OR filter', async () => {
       const fake = makeFakeClient();
