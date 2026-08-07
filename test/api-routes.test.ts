@@ -53,6 +53,10 @@ describe('API routes', () => {
         { id: '5', name: 'Producto', description: 'Desc', tax_rules_group_id: 5, manufacturer_id: '3', categories: [] }
       ]),
       fetchStockByIds: jest.fn().mockResolvedValue([{ id: '50', quantity: 7 }, { id: '51', quantity: 2 }]),
+      fetchProductsByReference: jest.fn().mockResolvedValue([]),
+      fetchCombinationsByIds: jest.fn().mockResolvedValue([]),
+      fetchManufacturers: jest.fn().mockResolvedValue([{ id: '3', name: 'Marca Uno' }]),
+      fetchCategories: jest.fn().mockResolvedValue([{ id: '8', name: 'Categoria Uno' }]),
       updateProductFields: jest.fn().mockResolvedValue({ success: true, operation: 'update_product', errors: [], warnings: [], timestamp: new Date() }),
       updateCombination: jest.fn().mockResolvedValue({ success: true, operation: 'update_combination', errors: [], warnings: [], timestamp: new Date() }),
       updateStock: jest.fn().mockResolvedValue({ success: true, operation: 'update_stock', errors: [], warnings: [], timestamp: new Date() }),
@@ -502,6 +506,212 @@ describe('API routes', () => {
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
     expect(res.body.error.message).toContain('Validate products');
+  });
+
+  it('rejects fetching from PrestaShop when it is not configured', async () => {
+    const app = makeApp();
+
+    const res = await request(app).post('/api/fetch/prestashop').send({ eans: ['8412345678901'] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.message).toContain('configured');
+  });
+
+  it('rejects fetching from PrestaShop without EANs or references', async () => {
+    const fakeClient = makeConsistencyFakeClient();
+    const app = makeApp({ fakePrestashop: true, prestashopClient: fakeClient });
+    await configurePrestashop(app);
+
+    const res = await request(app).post('/api/fetch/prestashop').send({ eans: [], references: [] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.message).toContain('EAN or one reference');
+  });
+
+  it('fetches products from PrestaShop by EAN, replacing the uploaded CSVs', async () => {
+    const fakeClient = makeConsistencyFakeClient();
+    (fakeClient.fetchCombinationsByEan as jest.Mock).mockResolvedValue([
+      {
+        id_product_attribute: '11',
+        id_product: '5',
+        ean13: '8412345678901',
+        reference: 'REF-A',
+        price: 19.99,
+        wholesale_price: 15,
+        stock_available_id: '50'
+      }
+    ]);
+    (fakeClient.fetchProductsById as jest.Mock).mockResolvedValue([
+      { id: '5', name: 'Producto', description: 'Desc', description_short: 'Corta', tax_rules_group_id: 5, manufacturer_id: '3', categories: ['8'], image_count: 1 }
+    ]);
+    const app = makeApp({ fakePrestashop: true, prestashopClient: fakeClient });
+    await configurePrestashop(app);
+
+    // A CSV is uploaded first so the test can assert it gets discarded.
+    const uploaded = await request(app)
+      .post('/api/upload/csv')
+      .attach('file', csvBuffer(), { filename: 'products.csv', contentType: 'text/csv' });
+    expect(uploaded.status).toBe(200);
+
+    const res = await request(app)
+      .post('/api/fetch/prestashop')
+      .send({ eans: ['8412345678901'], description: 'all', images: 'all' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.data_id).toBeDefined();
+    expect(res.body.data.products).toHaveLength(1);
+    expect(res.body.data.products[0]).toMatchObject({
+      id: 'ps_11',
+      source_file: 'prestashop',
+      ean: '8412345678901',
+      reference: 'REF-A',
+      name: 'Producto',
+      description: 'Desc',
+      description_short: 'Corta',
+      brand: 'Marca Uno',
+      category: 'Categoria Uno',
+      tax: '5',
+      price: 19.99,
+      wholesale_price: 15,
+      quantity: 7
+    });
+
+    const uploads = await request(app).get('/api/uploads');
+    expect(uploads.body.data.csvs).toHaveLength(0);
+    expect(uploads.body.data.prestashop.present).toBe(true);
+  });
+
+  it('applies the description and images filters to the fetched rows', async () => {
+    const fakeClient = makeConsistencyFakeClient();
+    (fakeClient.fetchCombinationsByEan as jest.Mock).mockResolvedValue([
+      { id_product_attribute: '11', id_product: '5', ean13: '8412345678901', stock_available_id: '50' },
+      { id_product_attribute: '12', id_product: '6', ean13: '8412345678902', stock_available_id: '51' }
+    ]);
+    (fakeClient.fetchProductsById as jest.Mock).mockResolvedValue([
+      { id: '5', name: 'Con desc', description: 'Larga', image_count: 2, categories: [] },
+      { id: '6', name: 'Sin desc', image_count: 0, categories: [] }
+    ]);
+    const app = makeApp({ fakePrestashop: true, prestashopClient: fakeClient });
+    await configurePrestashop(app);
+
+    const res = await request(app)
+      .post('/api/fetch/prestashop')
+      .send({ eans: ['8412345678901'], description: 'with', images: 'with' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.products).toHaveLength(1);
+    expect(res.body.data.products[0].ean).toBe('8412345678901');
+  });
+
+  it('limits the fetched rows to 50', async () => {
+    const fakeClient = makeConsistencyFakeClient();
+    const combos = Array.from({ length: 60 }, (_, index) => ({
+      id_product_attribute: `c${index + 1}`,
+      id_product: `p${index + 1}`,
+      ean13: `84${String(index + 1).padStart(11, '0')}`,
+      stock_available_id: `s${index + 1}`
+    }));
+    (fakeClient.fetchCombinationsByEan as jest.Mock).mockResolvedValue(combos);
+    (fakeClient.fetchProductsById as jest.Mock).mockResolvedValue(
+      combos.map((combo) => ({ id: combo.id_product, name: `P${combo.id_product}`, categories: [] }))
+    );
+    const app = makeApp({ fakePrestashop: true, prestashopClient: fakeClient });
+    await configurePrestashop(app);
+
+    const res = await request(app).post('/api/fetch/prestashop').send({ eans: ['8412345678901'] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.products).toHaveLength(50);
+  });
+
+  it('fetches products by reference through their combinations', async () => {
+    const fakeClient = makeConsistencyFakeClient();
+    (fakeClient.fetchCombinationsByEan as jest.Mock).mockResolvedValue([]);
+    (fakeClient.fetchProductsByReference as jest.Mock).mockResolvedValue([
+      { id: '7', reference: 'REF-Z', name: 'Por ref', combination_ids: ['21'], categories: [] }
+    ]);
+    (fakeClient.fetchCombinationsByIds as jest.Mock).mockResolvedValue([
+      { id_product_attribute: '21', id_product: '7', reference: 'REF-Z', ean13: '8412345678909', stock_available_id: '60' }
+    ]);
+    (fakeClient.fetchProductsById as jest.Mock).mockResolvedValue([
+      { id: '7', reference: 'REF-Z', name: 'Por ref', combination_ids: ['21'], categories: [] }
+    ]);
+    (fakeClient.fetchStockByIds as jest.Mock).mockResolvedValue([{ id: '60', quantity: 3 }]);
+    const app = makeApp({ fakePrestashop: true, prestashopClient: fakeClient });
+    await configurePrestashop(app);
+
+    const res = await request(app).post('/api/fetch/prestashop').send({ references: ['REF-Z'] });
+
+    expect(res.status).toBe(200);
+    expect(fakeClient.fetchProductsByReference).toHaveBeenCalledWith(['REF-Z']);
+    expect(fakeClient.fetchCombinationsByIds).toHaveBeenCalledWith(['21']);
+    expect(res.body.data.products).toHaveLength(1);
+    expect(res.body.data.products[0].ean).toBe('8412345678909');
+    expect(res.body.data.products[0].quantity).toBe(3);
+  });
+
+  it('returns 404 when no products match the fetch criteria', async () => {
+    const fakeClient = makeConsistencyFakeClient();
+    (fakeClient.fetchCombinationsByEan as jest.Mock).mockResolvedValue([]);
+    (fakeClient.fetchProductsByReference as jest.Mock).mockResolvedValue([]);
+    const app = makeApp({ fakePrestashop: true, prestashopClient: fakeClient });
+    await configurePrestashop(app);
+
+    const res = await request(app).post('/api/fetch/prestashop').send({ eans: ['999'] });
+
+    expect(res.status).toBe(404);
+    expect(res.body.error.message).toContain('No products matched');
+  });
+
+  it('discards the PrestaShop-fetched data via DELETE', async () => {
+    const fakeClient = makeConsistencyFakeClient();
+    const app = makeApp({ fakePrestashop: true, prestashopClient: fakeClient });
+    await configurePrestashop(app);
+
+    await request(app).post('/api/fetch/prestashop').send({ eans: ['8412345678901'] });
+
+    const del = await request(app).delete('/api/fetch/prestashop');
+    expect(del.status).toBe(200);
+
+    const uploads = await request(app).get('/api/uploads');
+    expect(uploads.body.data.prestashop.present).toBe(false);
+  });
+
+  it('discards the PrestaShop-fetched data when a CSV is uploaded', async () => {
+    const fakeClient = makeConsistencyFakeClient();
+    const app = makeApp({ fakePrestashop: true, prestashopClient: fakeClient });
+    await configurePrestashop(app);
+
+    await request(app).post('/api/fetch/prestashop').send({ eans: ['8412345678901'] });
+
+    const uploaded = await request(app)
+      .post('/api/upload/csv')
+      .attach('file', csvBuffer(), { filename: 'products.csv', contentType: 'text/csv' });
+    expect(uploaded.status).toBe(200);
+
+    const uploads = await request(app).get('/api/uploads');
+    expect(uploads.body.data.csvs).toHaveLength(1);
+    expect(uploads.body.data.prestashop.present).toBe(false);
+  });
+
+  it('validates the PrestaShop-fetched dataset as any other working dataset', async () => {
+    const fakeClient = makeConsistencyFakeClient();
+    const app = makeApp({ fakePrestashop: true, prestashopClient: fakeClient });
+    await configurePrestashop(app);
+
+    const fetched = await request(app)
+      .post('/api/fetch/prestashop')
+      .send({ eans: ['8412345678901', '8412345678902'] });
+    expect(fetched.status).toBe(200);
+    const dataId = fetched.body.data.data_id;
+
+    const validated = await request(app).post(`/api/validate/products/${dataId}`);
+
+    expect(validated.status).toBe(200);
+    expect(validated.body.data.products).toHaveLength(2);
+    expect(validated.body.data.consistency.checked).toBe(true);
   });
 
   it('persists the configuration across app instances with encrypted secrets', async () => {

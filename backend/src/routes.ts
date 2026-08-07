@@ -17,6 +17,7 @@ import { ReviewStateManager } from './modules/review-state/review-state';
 import { ConsistencyValidator } from './modules/consistency-validator/consistency-validator';
 import { CombinationSync } from './modules/combination-sync/combination-sync';
 import { PrestaShopClient } from './modules/prestashop-client/prestashop-client';
+import { PrestaShopFetcher, PRESTASHOP_FETCH_LIMIT } from './modules/prestashop-fetcher/prestashop-fetcher';
 import { ConfigPersistence } from './modules/config-persistence/config-persistence';
 import {
   AIConfig,
@@ -160,6 +161,18 @@ function hasPrestashopConfig(config: PrestaShopConfig): boolean {
   return Boolean(config.base_url && config.api_key);
 }
 
+async function clearCsvUploads(store: DataStore, uploadsDir: string): Promise<void> {
+  for (const upload of store.uploads.values()) {
+    await fs.remove(upload.path);
+  }
+  store.uploads.clear();
+  store.datasets.clear();
+  store.validationResults.clear();
+  store.consistencyResults.clear();
+  store.matchingResults.clear();
+  store.aiSuggestions.clear();
+}
+
 async function scanImageFolder(folderPath: string): Promise<ImageFile[]> {
   const files: ImageFile[] = [];
   const entries = await fs.readdir(folderPath, { withFileTypes: true });
@@ -281,6 +294,12 @@ export function createApiRouter(deps: RouteDependencies): Router {
         mimeType: file.mimetype
       });
 
+      // A CSV upload replaces any PrestaShop-fetched dataset: the two sources
+      // are mutually exclusive (the UI warns before this happens).
+      store.prestashopDataset = undefined;
+      store.validationResults.clear();
+      store.consistencyResults.clear();
+
       res.json({
         success: true,
         message: 'CSV file uploaded',
@@ -361,6 +380,7 @@ export function createApiRouter(deps: RouteDependencies): Router {
   });
 
   router.get('/uploads', (_req, res) => {
+    const ps = store.prestashopDataset;
     res.json({
       success: true,
       data: {
@@ -368,7 +388,10 @@ export function createApiRouter(deps: RouteDependencies): Router {
           id: upload.fileId,
           name: upload.originalName
         })),
-        images: store.images.map((image) => ({ id: image.filename, name: image.filename }))
+        images: store.images.map((image) => ({ id: image.filename, name: image.filename })),
+        prestashop: ps
+          ? { present: true, dataId: ps.dataId, count: ps.products.length }
+          : { present: false }
       }
     });
   });
@@ -430,6 +453,74 @@ export function createApiRouter(deps: RouteDependencies): Router {
       res.json({ success: true, message: 'All images removed' });
     })
   );
+
+  // PrestaShop Webservice fetch
+  // Builds a working dataset straight from PrestaShop (by EAN and/or reference,
+  // with optional filters) as an alternative data source to uploading a CSV.
+  // Fetching replaces any uploaded CSVs, which are discarded.
+  router.post(
+    '/fetch/prestashop',
+    wrap(async (req, res) => {
+      const prestashop = store.config.prestashop;
+      if (!hasPrestashopConfig(prestashop)) {
+        throw new AppError('PrestaShop must be configured to fetch products', 400);
+      }
+
+      const body = req.body ?? {};
+      const eans = Array.isArray(body.eans) ? (body.eans as string[]) : [];
+      const references = Array.isArray(body.references) ? (body.references as string[]) : [];
+      const normalizedEans = eans
+        .map((ean) => String(ean).replace(/[^0-9]/g, ''))
+        .filter(Boolean);
+      const normalizedReferences = references.map((reference) => String(reference).trim()).filter(Boolean);
+
+      if (normalizedEans.length === 0 && normalizedReferences.length === 0) {
+        throw new AppError('Provide at least one EAN or one reference', 400);
+      }
+
+      const client = buildPrestashopClient(deps, prestashop);
+      const fetcher = new PrestaShopFetcher(client);
+      const products = await fetcher.fetch({
+        eans: normalizedEans,
+        references: normalizedReferences,
+        description: body.description === 'with' || body.description === 'without' ? body.description : 'all',
+        images: body.images === 'with' || body.images === 'without' ? body.images : 'all',
+        limit: PRESTASHOP_FETCH_LIMIT
+      });
+
+      if (products.length === 0) {
+        throw new AppError('No products matched the given criteria', 404);
+      }
+
+      const dataId = store.newId('ps');
+      store.prestashopDataset = {
+        dataId,
+        fileId: dataId,
+        fileName: 'PrestaShop',
+        products,
+        csvHeaders: [],
+        totalRows: products.length
+      };
+      await clearCsvUploads(store, uploadsDir);
+
+      res.json({
+        success: true,
+        message: `${products.length} product(s) fetched from PrestaShop`,
+        data: {
+          data_id: dataId,
+          products,
+          summary: { total: products.length }
+        }
+      });
+    })
+  );
+
+  router.delete('/fetch/prestashop', (req, res) => {
+    store.prestashopDataset = undefined;
+    store.validationResults.clear();
+    store.consistencyResults.clear();
+    res.json({ success: true, message: 'PrestaShop data discarded' });
+  });
 
   // Data processing
   router.post(

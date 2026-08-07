@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useI18n } from '../../i18n';
 import { useBackendStatus } from '../../hooks/useBackendStatus';
 import { getApiService } from '../../services/api-service';
-import { UploadItem } from '../../types';
+import { PrestaShopUploadStatus, UploadItem } from '../../types';
 import AppHeader from '../../components/layout/AppHeader';
 import TabNav, { TabItem } from '../../components/layout/TabNav';
 import UploadSection from '../../components/data-upload/UploadSection';
@@ -29,6 +29,7 @@ export default function DashboardPage() {
   const [showConfiguration, setShowConfiguration] = useState(false);
   const [uploadedCsvs, setUploadedCsvs] = useState<UploadItem[]>([]);
   const [uploadedImages, setUploadedImages] = useState<UploadItem[]>([]);
+  const [prestashop, setPrestashop] = useState<PrestaShopUploadStatus>({ present: false });
   const status = useBackendStatus();
 
   const validated = dataId !== undefined && validatedAtVersion !== null && validatedAtVersion === dataVersion;
@@ -38,19 +39,31 @@ export default function DashboardPage() {
     const data = res?.data ?? {};
     const csvs = Array.isArray(data.csvs) ? data.csvs : [];
     const images = Array.isArray(data.images) ? data.images : [];
+    const psRaw = (data.prestashop ?? {}) as Partial<PrestaShopUploadStatus>;
+    const ps: PrestaShopUploadStatus = {
+      present: Boolean(psRaw.present),
+      dataId: psRaw.dataId,
+      count: psRaw.count
+    };
     const csvsChanged =
       csvs.length !== uploadedCsvs.length ||
       csvs.some(
         (csv: UploadItem, index: number) =>
           uploadedCsvs[index]?.id !== csv.id || uploadedCsvs[index]?.name !== csv.name
       );
+    const psChanged = ps.present !== prestashop.present || (ps.present && ps.dataId !== prestashop.dataId);
     setUploadedCsvs(csvs);
     setUploadedImages(images);
-    if (csvsChanged) {
+    setPrestashop(ps);
+    if (csvsChanged || psChanged) {
       setDataVersion((value) => value + 1);
       setValidatedAtVersion(null);
     }
-    if (csvs.length === 0) {
+    if (ps.present) {
+      if (ps.dataId) {
+        setDataId(ps.dataId);
+      }
+    } else if (csvs.length === 0) {
       setDataId(undefined);
       setActiveTab('upload');
     } else if (!csvs.some((csv: UploadItem) => csv.id === dataId)) {
@@ -70,6 +83,16 @@ export default function DashboardPage() {
         const data = res?.data ?? {};
         setUploadedCsvs(Array.isArray(data.csvs) ? data.csvs : []);
         setUploadedImages(Array.isArray(data.images) ? data.images : []);
+        const psRaw = (data.prestashop ?? {}) as Partial<PrestaShopUploadStatus>;
+        const ps: PrestaShopUploadStatus = {
+          present: Boolean(psRaw.present),
+          dataId: psRaw.dataId,
+          count: psRaw.count
+        };
+        setPrestashop(ps);
+        if (ps.present && ps.dataId) {
+          setDataId(ps.dataId);
+        }
       } catch {
         /* backend may be offline */
       }
@@ -102,6 +125,22 @@ export default function DashboardPage() {
 
   function handleCsvUploaded(item: UploadItem) {
     setUploadedCsvs((prev) => [...prev, item]);
+    setPrestashop({ present: false });
+    setDataVersion((value) => value + 1);
+  }
+
+  function handlePrestashopReady(dataId: string, count: number) {
+    setPrestashop({ present: true, dataId, count });
+    setUploadedCsvs([]);
+    setDataId(dataId);
+    setValidatedAtVersion(null);
+    setDataVersion((value) => value + 1);
+  }
+
+  function handlePrestashopCleared() {
+    setPrestashop({ present: false });
+    setDataId(undefined);
+    setValidatedAtVersion(null);
     setDataVersion((value) => value + 1);
   }
 
@@ -133,6 +172,9 @@ export default function DashboardPage() {
                 onCsvUploaded={handleCsvUploaded}
                 onImagesUploaded={handleImagesUploaded}
                 onUploadsChanged={refreshUploads}
+                prestashop={prestashop}
+                onPrestashopReady={handlePrestashopReady}
+                onPrestashopCleared={handlePrestashopCleared}
               />
             )}
             {activeTab === 'validation' &&

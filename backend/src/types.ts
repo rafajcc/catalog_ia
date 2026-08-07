@@ -227,6 +227,9 @@ export interface PrestaShopProductInfo {
   wholesale_price?: number;
   manufacturer_id?: string;
   categories?: string[];
+  // Present when the product resource was fetched with `display=full`.
+  combination_ids?: string[];
+  image_count?: number;
 }
 
 // Outcome of resolving a CSV row against PrestaShop.

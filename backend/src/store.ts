@@ -62,6 +62,9 @@ export class DataStore {
   uploads = new Map<string, UploadedFile>();
   // One parsed dataset per uploaded CSV, keyed by fileId.
   datasets = new Map<string, DataSet>();
+  // Working dataset fetched from the PrestaShop Webservice. Mutually exclusive
+  // with the CSV datasets: it becomes the active dataset while it is present.
+  prestashopDataset: DataSet | undefined = undefined;
   validationResults = new Map<string, { products: ProductData[] }>();
   consistencyResults = new Map<string, ConsistencyResult>();
   images: ImageFile[] = [];
@@ -78,8 +81,11 @@ export class DataStore {
     return this.datasets.get(fileId);
   }
 
-  // Merges every parsed CSV into a single working dataset, in upload order.
+  // Returns the working dataset: the PrestaShop-fetched dataset when present
+  // (it replaces any uploaded CSVs), otherwise the merged parsed CSVs.
   getActiveDataset(): DataSet | undefined {
+    if (this.prestashopDataset) return this.prestashopDataset;
+
     const datasets: DataSet[] = [];
     for (const fileId of this.uploads.keys()) {
       const dataset = this.datasets.get(fileId);

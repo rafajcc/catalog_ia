@@ -666,6 +666,119 @@ describe('PrestaShopClient', () => {
     });
   });
 
+  describe('fetchProductsByReference', () => {
+    it('fetches full product data for the given references with an OR filter', async () => {
+      const fake = makeFakeClient();
+      fake.get.mockResolvedValue({
+        data: `<prestashop>
+          <products>
+            <product id="9">
+              <reference><![CDATA[REF-1]]></reference>
+              <name><language id="1"><![CDATA[Camiseta]]></language></name>
+              <associations>
+                <combinations>
+                  <combination id="11" xlink:href="https://shop.example.com/api/combinations/11"/>
+                  <combination id="12" xlink:href="https://shop.example.com/api/combinations/12"/>
+                </combinations>
+                <images>
+                  <image id="30" xlink:href="https://shop.example.com/api/images/products/9/30"/>
+                </images>
+              </associations>
+            </product>
+          </products>
+        </prestashop>`
+      });
+      const client = makeClient(fake);
+
+      const result = await client.fetchProductsByReference(['REF-1']);
+
+      expect(fake.get).toHaveBeenCalledWith('/api/products', {
+        params: { 'filter[reference]': '[REF-1]', display: 'full', limit: 1000 }
+      });
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        id: '9',
+        reference: 'REF-1',
+        name: 'Camiseta',
+        combination_ids: ['11', '12'],
+        image_count: 1
+      });
+    });
+  });
+
+  describe('fetchCombinationsByIds', () => {
+    it('fetches the combinations matching any of the given ids', async () => {
+      const fake = makeFakeClient();
+      fake.get.mockResolvedValue({
+        data: `<prestashop>
+          <combinations>
+            <combination id="11">
+              <id_product><![CDATA[5]]></id_product>
+              <ean13><![CDATA[8412345678901]]></ean13>
+              <price>10.000000</price>
+            </combination>
+          </combinations>
+        </prestashop>`
+      });
+      const client = makeClient(fake);
+
+      const result = await client.fetchCombinationsByIds(['11']);
+
+      expect(fake.get).toHaveBeenCalledWith('/api/combinations', {
+        params: { 'filter[id]': '[11]', display: 'full', limit: 1000 }
+      });
+      expect(result).toEqual([
+        expect.objectContaining({ id_product_attribute: '11', id_product: '5', ean13: '8412345678901' })
+      ]);
+    });
+  });
+
+  describe('fetchManufacturers', () => {
+    it('returns the id and localized name of every manufacturer', async () => {
+      const fake = makeFakeClient();
+      fake.get.mockResolvedValue({
+        data: `<prestashop>
+          <manufacturers>
+            <manufacturer id="3">
+              <name><language id="1"><![CDATA[Marca Uno]]></language></name>
+            </manufacturer>
+          </manufacturers>
+        </prestashop>`
+      });
+      const client = makeClient(fake);
+
+      const result = await client.fetchManufacturers();
+
+      expect(fake.get).toHaveBeenCalledWith('/api/manufacturers', {
+        params: { display: 'full', limit: 1000 }
+      });
+      expect(result).toEqual([{ id: '3', name: 'Marca Uno' }]);
+    });
+  });
+
+  describe('fetchCategories', () => {
+    it('returns the id and localized name of every category', async () => {
+      const fake = makeFakeClient();
+      fake.get.mockResolvedValue({
+        data: `<prestashop>
+          <categories>
+            <category id="8">
+              <name><language id="1"><![CDATA[Categoria Uno]]></language></name>
+            </category>
+          </categories>
+        </prestashop>`
+      });
+      const client = makeClient(fake);
+
+      const result = await client.fetchCategories();
+
+      expect(fake.get).toHaveBeenCalledWith('/api/categories', {
+        params: { display: 'full', limit: 1000 }
+      });
+      expect(result).toEqual([{ id: '8', name: 'Categoria Uno' }]);
+    });
+  });
+
   describe('updateCombination', () => {
     it('patches the combination with the updated fields', async () => {
       const fake = makeFakeClient();

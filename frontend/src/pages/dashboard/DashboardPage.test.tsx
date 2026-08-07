@@ -22,6 +22,8 @@ describe('DashboardPage', () => {
       deleteImageUpload: jest.fn().mockResolvedValue({ success: true }),
       deleteAllCsvs: jest.fn().mockResolvedValue({ success: true }),
       deleteAllImages: jest.fn().mockResolvedValue({ success: true }),
+      fetchPrestashopData: jest.fn(),
+      clearPrestashopData: jest.fn().mockResolvedValue({ success: true }),
       getConfiguration: jest.fn().mockResolvedValue({ success: true }),
       validateProducts: jest.fn(),
       getValidationResults: jest.fn(),
@@ -348,5 +350,67 @@ describe('DashboardPage', () => {
     await user.click(screen.getByRole('button', { name: 'Delete all' }));
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Validation' })).toBeDisabled());
+  });
+
+  it('uses PrestaShop-fetched data as the active dataset and unlocks the data tabs', async () => {
+    mockApi.getUploads.mockResolvedValue({
+      success: true,
+      data: { csvs: [], images: [], prestashop: { present: true, dataId: 'ps-1', count: 2 } }
+    });
+    renderWithI18n(<DashboardPage />, 'en');
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Validation' })).toBeEnabled());
+    expect(screen.getByText('2 products imported from PrestaShop')).toBeInTheDocument();
+  });
+
+  it('fetches PrestaShop data from the upload section and unlocks the data tabs', async () => {
+    mockApi.fetchPrestashopData.mockResolvedValue({
+      success: true,
+      data: { data_id: 'ps-1', summary: { total: 2 } }
+    });
+    renderWithI18n(<DashboardPage />, 'en');
+
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/EAN codes/), '8412345678901');
+    await user.click(screen.getByRole('button', { name: 'Fetch from PrestaShop' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Validation' })).toBeEnabled());
+    expect(screen.getByText('2 products imported from PrestaShop')).toBeInTheDocument();
+  });
+
+  it('re-locks the data tabs when PrestaShop data is removed', async () => {
+    mockApi.getUploads.mockResolvedValue({
+      success: true,
+      data: { csvs: [], images: [], prestashop: { present: true, dataId: 'ps-1', count: 2 } }
+    });
+    renderWithI18n(<DashboardPage />, 'en');
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Validation' })).toBeEnabled());
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Remove imported data' }));
+
+    expect(mockApi.clearPrestashopData).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Validation' })).toBeDisabled());
+  });
+
+  it('replaces PrestaShop data when a CSV is uploaded', async () => {
+    mockApi.getUploads.mockResolvedValue({
+      success: true,
+      data: { csvs: [], images: [], prestashop: { present: true, dataId: 'ps-1', count: 2 } }
+    });
+    mockApi.uploadCSV.mockResolvedValue({ success: true, file_id: 'file-1' });
+    mockApi.parseCSV.mockResolvedValue({ success: true, data: { data_id: 'data-1' } });
+    renderWithI18n(<DashboardPage />, 'en');
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Validation' })).toBeEnabled());
+
+    const user = userEvent.setup();
+    await user.upload(screen.getByLabelText(/Product catalog \(CSV\)/), new File(['a,b'], 'p.csv'));
+    await user.click(screen.getByRole('button', { name: /Upload CSV/ }));
+
+    await waitFor(() => expect(screen.getByText('p.csv')).toBeInTheDocument());
+    expect(screen.queryByText('Remove imported data')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Validation' })).toBeEnabled();
   });
 });

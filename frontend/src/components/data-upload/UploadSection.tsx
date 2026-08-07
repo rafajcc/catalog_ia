@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { getApiService } from '../../services/api-service';
 import { downloadBlob, getApiError, getErrorMessage } from '../../utils/download';
 import { useI18n } from '../../i18n';
-import { UploadItem } from '../../types';
+import { PrestaShopPresenceFilter, PrestaShopUploadStatus, UploadItem } from '../../types';
 
 interface Message {
   kind: 'success' | 'error' | 'warning';
   text: string;
 }
+
+const PRESTASHOP_FETCH_LIMIT = 50;
 
 const CSV_GUIDE_COLUMNS: Array<{ key: string; required: boolean }> = [
   { key: 'ean', required: true },
@@ -34,6 +36,9 @@ interface UploadSectionProps {
   onCsvUploaded?: (item: UploadItem) => void;
   onImagesUploaded?: (items: UploadItem[]) => void;
   onUploadsChanged?: () => void;
+  prestashop?: PrestaShopUploadStatus;
+  onPrestashopReady?: (dataId: string, count: number) => void;
+  onPrestashopCleared?: () => void;
 }
 
 export default function UploadSection({
@@ -42,7 +47,10 @@ export default function UploadSection({
   uploadedImages = [],
   onCsvUploaded,
   onImagesUploaded,
-  onUploadsChanged
+  onUploadsChanged,
+  prestashop = { present: false },
+  onPrestashopReady,
+  onPrestashopCleared
 }: UploadSectionProps) {
   const api = getApiService();
   const { t } = useI18n();
@@ -52,6 +60,10 @@ export default function UploadSection({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
   const [showCsvGuide, setShowCsvGuide] = useState(false);
+  const [eanText, setEanText] = useState('');
+  const [referenceText, setReferenceText] = useState('');
+  const [descriptionFilter, setDescriptionFilter] = useState<PrestaShopPresenceFilter>('all');
+  const [imagesFilter, setImagesFilter] = useState<PrestaShopPresenceFilter>('all');
 
   async function handleCsvUpload() {
     if (!csvFile) {
@@ -221,6 +233,77 @@ export default function UploadSection({
     }
   }
 
+  async function handlePrestashopFetch() {
+    const eans = eanText
+      .split(/[\n,;]+/)
+      .map((value) => value.trim())
+      .filter(Boolean);
+    const references = referenceText
+      .split(/[\n,;]+/)
+      .map((value) => value.trim())
+      .filter(Boolean);
+    if (eans.length === 0 && references.length === 0) {
+      setMessage({ kind: 'error', text: t('upload.prestashopNoCriteria') });
+      return;
+    }
+    if (uploadedCsvs.length > 0) {
+      const proceed = window.confirm(t('upload.prestashopConflictCsv'));
+      if (!proceed) return;
+    }
+    setBusy(true);
+    setMessage(null);
+    try {
+      const response = await api.fetchPrestashopData({
+        eans,
+        references,
+        description: descriptionFilter,
+        images: imagesFilter,
+        limit: PRESTASHOP_FETCH_LIMIT
+      });
+      const data = response?.data ?? {};
+      const count = Number(data?.summary?.total ?? 0);
+      setMessage({ kind: 'success', text: t('upload.prestashopSuccess', { count }) });
+      setEanText('');
+      setReferenceText('');
+      onPrestashopReady?.(String(data?.data_id ?? ''), count);
+    } catch (error) {
+      setMessage({ kind: 'error', text: formatPrestashopError(error) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function formatPrestashopError(error: unknown): string {
+    const apiError = getApiError(error);
+    const message = apiError?.message;
+    if (typeof message === 'string') {
+      if (message.includes('must be configured')) {
+        return t('upload.prestashopNotConfigured');
+      }
+      if (message.includes('No products matched')) {
+        return t('upload.prestashopNoMatch');
+      }
+      if (message.includes('Provide at least one')) {
+        return t('upload.prestashopNoCriteria');
+      }
+    }
+    return getErrorMessage(error);
+  }
+
+  async function handlePrestashopClear() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      await api.clearPrestashopData();
+      setMessage({ kind: 'success', text: t('upload.prestashopCleared') });
+      onPrestashopCleared?.();
+    } catch (error) {
+      setMessage({ kind: 'error', text: getErrorMessage(error) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <section className="card">
       <h2>{t('upload.title')}</h2>
@@ -286,6 +369,7 @@ export default function UploadSection({
             <p>{t('upload.guide.downloadHint')}</p>
           </div>
         )}
+        {prestashop.present && <p className="message warning">{t('upload.prestashopConflictPs')}</p>}
       </div>
 
       <div className="field">
@@ -321,6 +405,79 @@ export default function UploadSection({
         <button type="button" className="btn primary" disabled={busy} onClick={handleFolderSelect}>
           {t('upload.folderButton')}
         </button>
+      </div>
+
+      <div className="field prestashop-fetch">
+        <h3>{t('upload.prestashopTitle')}</h3>
+        <p className="hint">{t('upload.prestashopIntro')}</p>
+
+        {uploadedCsvs.length > 0 && <p className="message warning">{t('upload.prestashopConflictCsv')}</p>}
+
+        <label htmlFor="ps-eans-input">{t('upload.prestashopEansLabel')}</label>
+        <textarea
+          id="ps-eans-input"
+          value={eanText}
+          disabled={busy}
+          rows={3}
+          placeholder={t('upload.prestashopEansPlaceholder')}
+          onChange={(event) => setEanText(event.target.value)}
+        />
+
+        <label htmlFor="ps-refs-input">{t('upload.prestashopReferencesLabel')}</label>
+        <textarea
+          id="ps-refs-input"
+          value={referenceText}
+          disabled={busy}
+          rows={3}
+          placeholder={t('upload.prestashopReferencesPlaceholder')}
+          onChange={(event) => setReferenceText(event.target.value)}
+        />
+
+        <div className="prestashop-filters">
+          <div>
+            <label htmlFor="ps-desc-filter">{t('upload.prestashopDescriptionFilter')}</label>
+            <select
+              id="ps-desc-filter"
+              value={descriptionFilter}
+              disabled={busy}
+              onChange={(event) => setDescriptionFilter(event.target.value as PrestaShopPresenceFilter)}
+            >
+              <option value="with">{t('upload.prestashopDescWith')}</option>
+              <option value="without">{t('upload.prestashopDescWithout')}</option>
+              <option value="all">{t('upload.prestashopDescAll')}</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="ps-images-filter">{t('upload.prestashopImagesFilter')}</label>
+            <select
+              id="ps-images-filter"
+              value={imagesFilter}
+              disabled={busy}
+              onChange={(event) => setImagesFilter(event.target.value as PrestaShopPresenceFilter)}
+            >
+              <option value="with">{t('upload.prestashopImgWith')}</option>
+              <option value="without">{t('upload.prestashopImgWithout')}</option>
+              <option value="all">{t('upload.prestashopImgAll')}</option>
+            </select>
+          </div>
+        </div>
+
+        <p className="hint">{t('upload.prestashopLimitNote', { limit: PRESTASHOP_FETCH_LIMIT })}</p>
+
+        <button type="button" className="btn primary" disabled={busy} onClick={handlePrestashopFetch}>
+          {busy ? t('upload.prestashopFetching') : t('upload.prestashopFetchButton')}
+        </button>
+
+        {prestashop.present && (
+          <div className="uploaded-group">
+            <div className="uploaded-group-header">
+              <strong>{t('upload.prestashopLoaded', { count: prestashop.count ?? 0 })}</strong>
+              <button type="button" className="btn btn-small" disabled={busy} onClick={handlePrestashopClear}>
+                {t('upload.prestashopClear')}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {(uploadedCsvs.length > 0 || uploadedImages.length > 0) && (

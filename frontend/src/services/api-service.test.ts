@@ -3,6 +3,7 @@ import { ApiService } from './api-service';
 var mockGet: jest.Mock;
 var mockPost: jest.Mock;
 var mockPut: jest.Mock;
+var mockDelete: jest.Mock;
 var mockInterceptorsUse: jest.Mock;
 
 jest.mock('axios', () => ({
@@ -12,6 +13,7 @@ jest.mock('axios', () => ({
       get: mockGet,
       post: mockPost,
       put: mockPut,
+      delete: mockDelete,
       interceptors: {
         request: { use: mockInterceptorsUse },
         response: { use: mockInterceptorsUse }
@@ -33,6 +35,7 @@ describe('ApiService', () => {
     mockGet = jest.fn();
     mockPost = jest.fn();
     mockPut = jest.fn();
+    mockDelete = jest.fn();
     mockInterceptorsUse = jest.fn();
     localStorage.clear();
   });
@@ -234,6 +237,27 @@ describe('ApiService', () => {
       const rows = [{ id: 'r1', name: 'Editado' }] as any;
       await service.uploadValidatedRows('d1', rows);
       expect(mockPost).toHaveBeenCalledWith('/validate/upload/d1', { rows });
+    });
+
+    it('fetchPrestashopData posts the fetch criteria', async () => {
+      mockPost.mockResolvedValue({ data: { success: true, data: { data_id: 'ps-1' } } });
+      const request: import('../../src/types').PrestaShopFetchRequest = {
+        eans: ['8412345678901'],
+        references: ['REF-A'],
+        description: 'with',
+        images: 'without',
+        limit: 50
+      };
+      const result = await service.fetchPrestashopData(request);
+      expect(result.data.data_id).toBe('ps-1');
+      expect(mockPost).toHaveBeenCalledWith('/fetch/prestashop', request);
+    });
+
+    it('clearPrestashopData deletes the fetched dataset', async () => {
+      mockDelete.mockResolvedValue({ data: { success: true } });
+      const result = await service.clearPrestashopData();
+      expect(result).toEqual({ success: true });
+      expect(mockDelete).toHaveBeenCalledWith('/fetch/prestashop');
     });
 
     it('getReviewState hits the review endpoint', async () => {

@@ -9,6 +9,7 @@ import {
   FileUploadResponse,
   ImageMatcherConfig,
   PrestaShopConfig,
+  PrestaShopFetchRequest,
   ProductData
 } from '../types';
 
@@ -154,6 +155,17 @@ export class ApiService {
 
   async deleteAllImages(): Promise<ApiResponse> {
     const response = await this.client.delete('/uploads/images');
+    return response.data;
+  }
+
+  // PrestaShop Webservice fetch endpoints
+  async fetchPrestashopData(request: PrestaShopFetchRequest): Promise<ApiResponse> {
+    const response = await this.client.post('/fetch/prestashop', request);
+    return response.data;
+  }
+
+  async clearPrestashopData(): Promise<ApiResponse> {
+    const response = await this.client.delete('/fetch/prestashop');
     return response.data;
   }
 

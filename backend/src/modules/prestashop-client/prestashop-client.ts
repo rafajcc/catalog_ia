@@ -209,6 +209,75 @@ export class PrestaShopClient {
     return results;
   }
 
+  // Fetches product-level data for the products matching any of the given
+  // references (OR filter), including their combinations association.
+  async fetchProductsByReference(references: string[]): Promise<PrestaShopProductInfo[]> {
+    const unique = Array.from(new Set(references.map((reference) => reference.trim()).filter(Boolean)));
+    const results: PrestaShopProductInfo[] = [];
+
+    for (const batch of this.chunk(unique, this.BATCH_SIZE)) {
+      const root = await this.getResourceList(this.endpoints.products, {
+        'filter[reference]': `[${batch.join('|')}]`,
+        display: 'full',
+        limit: 1000
+      });
+      const nodes = this.toArray(root?.products?.product);
+      results.push(...nodes.map((node) => this.extractProductInfo(node)));
+    }
+
+    return results;
+  }
+
+  // Fetches the combinations matching any of the given combination ids.
+  async fetchCombinationsByIds(ids: string[]): Promise<PrestaShopCombinationInfo[]> {
+    const unique = Array.from(new Set(ids.filter(Boolean)));
+    const results: PrestaShopCombinationInfo[] = [];
+
+    for (const batch of this.chunk(unique, this.BATCH_SIZE)) {
+      const root = await this.getResourceList(this.endpoints.combinations, {
+        'filter[id]': `[${batch.join('|')}]`,
+        display: 'full',
+        limit: 1000
+      });
+      const nodes = this.toArray(root?.combinations?.combination);
+      results.push(...nodes.map((node) => this.extractCombination(node)));
+    }
+
+    return results;
+  }
+
+  // Fetches every manufacturer so ids can be mapped to their localized names.
+  async fetchManufacturers(): Promise<Array<{ id: string; name?: string }>> {
+    const root = await this.getResourceList(this.endpoints.manufacturers, {
+      display: 'full',
+      limit: 1000
+    });
+    const nodes = this.toArray(root?.manufacturers?.manufacturer);
+    return nodes
+      .map((node) => ({
+        id: node?._attributes?.id as string | undefined,
+        name: this.extractLocalized(node?.name, this.config.language_id)
+      }))
+      .filter((entry) => !!entry.id)
+      .map((entry) => ({ id: entry.id as string, name: entry.name }));
+  }
+
+  // Fetches every category so ids can be mapped to their localized names.
+  async fetchCategories(): Promise<Array<{ id: string; name?: string }>> {
+    const root = await this.getResourceList(this.endpoints.categories, {
+      display: 'full',
+      limit: 1000
+    });
+    const nodes = this.toArray(root?.categories?.category);
+    return nodes
+      .map((node) => ({
+        id: node?._attributes?.id as string | undefined,
+        name: this.extractLocalized(node?.name, this.config.language_id)
+      }))
+      .filter((entry) => !!entry.id)
+      .map((entry) => ({ id: entry.id as string, name: entry.name }));
+  }
+
   // Fetches stock quantities for the given stock_available ids.
   async fetchStockByIds(ids: string[]): Promise<Array<{ id: string; quantity?: number }>> {
     const unique = Array.from(new Set(ids.filter(Boolean)));
@@ -698,6 +767,8 @@ export class PrestaShopClient {
 
   private extractProductInfo(node: any): PrestaShopProductInfo {
     const categoryNodes = this.toArray(node?.associations?.categories?.category);
+    const combinationNodes = this.toArray(node?.associations?.combinations?.combination);
+    const imageNodes = this.toArray(node?.associations?.images?.image);
     return {
       id: node?._attributes?.id,
       reference: this.extractText(node?.reference),
@@ -709,7 +780,9 @@ export class PrestaShopClient {
       price: this.toNumber(this.extractText(node?.price)),
       wholesale_price: this.toNumber(this.extractText(node?.wholesale_price)),
       manufacturer_id: node?.manufacturer?._attributes?.id as string | undefined,
-      categories: categoryNodes.map((category) => category?._attributes?.id).filter(Boolean)
+      categories: categoryNodes.map((category) => category?._attributes?.id).filter(Boolean),
+      combination_ids: combinationNodes.map((combination) => combination?._attributes?.id).filter(Boolean),
+      image_count: imageNodes.length
     };
   }
 

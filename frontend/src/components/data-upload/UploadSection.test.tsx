@@ -39,7 +39,9 @@ describe('UploadSection', () => {
       deleteCsvUpload: jest.fn(),
       deleteImageUpload: jest.fn(),
       deleteAllCsvs: jest.fn(),
-      deleteAllImages: jest.fn()
+      deleteAllImages: jest.fn(),
+      fetchPrestashopData: jest.fn(),
+      clearPrestashopData: jest.fn()
     };
   });
 
@@ -374,5 +376,150 @@ describe('UploadSection', () => {
     await user.click(screen.getAllByRole('button', { name: 'Delete all' })[1]);
     expect(mockApi.deleteAllImages).toHaveBeenCalledTimes(1);
     expect(await screen.findByText('All images deleted')).toBeInTheDocument();
+  });
+
+  it('fetches products from PrestaShop by EAN and notifies the parent', async () => {
+    mockApi.fetchPrestashopData.mockResolvedValue({
+      success: true,
+      data: { data_id: 'ps-1', summary: { total: 2 } }
+    });
+    const onPrestashopReady = jest.fn();
+
+    renderWithI18n(<UploadSection onPrestashopReady={onPrestashopReady} />, 'en');
+
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/EAN codes/), '8412345678901\n8423456789012');
+    await user.click(screen.getByRole('button', { name: 'Fetch from PrestaShop' }));
+
+    await waitFor(() => expect(onPrestashopReady).toHaveBeenCalledWith('ps-1', 2));
+    expect(mockApi.fetchPrestashopData).toHaveBeenCalledWith({
+      eans: ['8412345678901', '8423456789012'],
+      references: [],
+      description: 'all',
+      images: 'all',
+      limit: 50
+    });
+    expect(await screen.findByText('Imported 2 products from PrestaShop')).toBeInTheDocument();
+  });
+
+  it('sends references and the selected filters to the fetch endpoint', async () => {
+    mockApi.fetchPrestashopData.mockResolvedValue({ success: true, data: { data_id: 'ps-1', summary: { total: 1 } } });
+
+    renderWithI18n(<UploadSection />, 'en');
+
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/References/), 'REF-001, REF-002');
+    await user.selectOptions(screen.getByLabelText('Description'), 'with');
+    await user.selectOptions(screen.getByLabelText('Images'), 'without');
+    await user.click(screen.getByRole('button', { name: 'Fetch from PrestaShop' }));
+
+    await waitFor(() =>
+      expect(mockApi.fetchPrestashopData).toHaveBeenCalledWith({
+        eans: [],
+        references: ['REF-001', 'REF-002'],
+        description: 'with',
+        images: 'without',
+        limit: 50
+      })
+    );
+  });
+
+  it('shows the 50-product limit note', () => {
+    renderWithI18n(<UploadSection />, 'es');
+    expect(screen.getByText(/Se importarán como máximo los primeros 50 productos/)).toBeInTheDocument();
+  });
+
+  it('warns and confirms before fetching when CSVs are already uploaded', async () => {
+    mockApi.fetchPrestashopData.mockResolvedValue({ success: true, data: { data_id: 'ps-1', summary: { total: 1 } } });
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
+
+    renderWithI18n(<UploadSection uploadedCsvs={[{ id: 'file-1', name: 'catalog.csv' }]} />, 'en');
+
+    expect(
+      screen.getByText('Fetching from PrestaShop will discard the currently uploaded CSVs. Continue?')
+    ).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/EAN codes/), '8412345678901');
+    await user.click(screen.getByRole('button', { name: 'Fetch from PrestaShop' }));
+
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mockApi.fetchPrestashopData).toHaveBeenCalledTimes(1));
+    confirmSpy.mockRestore();
+  });
+
+  it('aborts the fetch when the user cancels the conflict confirmation', async () => {
+    mockApi.fetchPrestashopData.mockResolvedValue({ success: true, data: { data_id: 'ps-1', summary: { total: 1 } } });
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(false);
+
+    renderWithI18n(<UploadSection uploadedCsvs={[{ id: 'file-1', name: 'catalog.csv' }]} />, 'en');
+
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/EAN codes/), '8412345678901');
+    await user.click(screen.getByRole('button', { name: 'Fetch from PrestaShop' }));
+
+    expect(mockApi.fetchPrestashopData).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  it('requires at least one EAN or reference before fetching', async () => {
+    renderWithI18n(<UploadSection />, 'en');
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Fetch from PrestaShop' }));
+
+    expect(screen.getByText('Enter at least one EAN or one reference')).toBeInTheDocument();
+    expect(mockApi.fetchPrestashopData).not.toHaveBeenCalled();
+  });
+
+  it('shows a friendly error when PrestaShop is not configured', async () => {
+    mockApi.fetchPrestashopData.mockRejectedValue({
+      response: { data: { error: { message: 'PrestaShop must be configured to fetch products' } } }
+    });
+    renderWithI18n(<UploadSection />, 'en');
+
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/EAN codes/), '8412345678901');
+    await user.click(screen.getByRole('button', { name: 'Fetch from PrestaShop' }));
+
+    expect(
+      await screen.findByText('Configure PrestaShop in the Configuration tab to import products.')
+    ).toBeInTheDocument();
+  });
+
+  it('shows a friendly error when no products match', async () => {
+    mockApi.fetchPrestashopData.mockRejectedValue({
+      response: { data: { error: { message: 'No products matched the given criteria' } } }
+    });
+    renderWithI18n(<UploadSection />, 'en');
+
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/EAN codes/), '8412345678901');
+    await user.click(screen.getByRole('button', { name: 'Fetch from PrestaShop' }));
+
+    expect(await screen.findByText('No products matched the given criteria.')).toBeInTheDocument();
+  });
+
+  it('shows the fetched products count and a remove button when PrestaShop data is present', async () => {
+    mockApi.clearPrestashopData.mockResolvedValue({ success: true });
+    const onPrestashopCleared = jest.fn();
+
+    renderWithI18n(
+      <UploadSection
+        prestashop={{ present: true, dataId: 'ps-1', count: 3 }}
+        onPrestashopCleared={onPrestashopCleared}
+      />,
+      'en'
+    );
+
+    expect(screen.getByText('3 products imported from PrestaShop')).toBeInTheDocument();
+    expect(screen.getByText('Uploading a CSV will replace the data imported from PrestaShop.')).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Remove imported data' }));
+
+    expect(mockApi.clearPrestashopData).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText('PrestaShop data removed')).toBeInTheDocument();
+    expect(onPrestashopCleared).toHaveBeenCalledTimes(1);
   });
 });

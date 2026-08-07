@@ -141,6 +141,23 @@ export interface UploadItem {
   name: string;
 }
 
+// PrestaShop Webservice fetch (alternative data source to the CSV upload).
+export type PrestaShopPresenceFilter = 'with' | 'without' | 'all';
+
+export interface PrestaShopFetchRequest {
+  eans?: string[];
+  references?: string[];
+  description?: PrestaShopPresenceFilter;
+  images?: PrestaShopPresenceFilter;
+  limit?: number;
+}
+
+export interface PrestaShopUploadStatus {
+  present: boolean;
+  dataId?: string;
+  count?: number;
+}
+
 export interface PaginatedResponse<T = any> extends ApiResponse {
   items: T[];
   total: number;
