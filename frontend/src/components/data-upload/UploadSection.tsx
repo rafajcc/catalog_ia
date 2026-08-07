@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { getApiService } from '../../services/api-service';
 import { downloadBlob, getApiError, getErrorMessage } from '../../utils/download';
 import { useI18n } from '../../i18n';
-import { PrestaShopPresenceFilter, PrestaShopUploadStatus, UploadItem } from '../../types';
+import { PrestaShopFilterOperator, PrestaShopPresenceFilter, PrestaShopUploadStatus, UploadItem } from '../../types';
 
 interface Message {
   kind: 'success' | 'error' | 'warning';
@@ -64,6 +64,7 @@ export default function UploadSection({
   const [referenceText, setReferenceText] = useState('');
   const [descriptionFilter, setDescriptionFilter] = useState<PrestaShopPresenceFilter>('all');
   const [imagesFilter, setImagesFilter] = useState<PrestaShopPresenceFilter>('all');
+  const [filterOperator, setFilterOperator] = useState<PrestaShopFilterOperator>('and');
 
   async function handleCsvUpload() {
     if (!csvFile) {
@@ -254,6 +255,7 @@ export default function UploadSection({
         references,
         description: descriptionFilter,
         images: imagesFilter,
+        filter_operator: filterOperator,
         limit: PRESTASHOP_FETCH_LIMIT
       });
       const data = response?.data ?? {};
@@ -451,6 +453,18 @@ export default function UploadSection({
               <option value="with">{t('upload.prestashopImgWith')}</option>
               <option value="without">{t('upload.prestashopImgWithout')}</option>
               <option value="all">{t('upload.prestashopImgAll')}</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="ps-filter-operator">{t('upload.prestashopFilterOperator')}</label>
+            <select
+              id="ps-filter-operator"
+              value={filterOperator}
+              disabled={busy}
+              onChange={(event) => setFilterOperator(event.target.value as PrestaShopFilterOperator)}
+            >
+              <option value="and">{t('upload.prestashopFilterAnd')}</option>
+              <option value="or">{t('upload.prestashopFilterOr')}</option>
             </select>
           </div>
         </div>

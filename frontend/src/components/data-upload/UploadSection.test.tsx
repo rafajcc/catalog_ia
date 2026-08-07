@@ -397,6 +397,7 @@ describe('UploadSection', () => {
       references: [],
       description: 'all',
       images: 'all',
+      filter_operator: 'and',
       limit: 50
     });
     expect(await screen.findByText('Imported 2 products from PrestaShop')).toBeInTheDocument();
@@ -419,6 +420,30 @@ describe('UploadSection', () => {
         references: ['REF-001', 'REF-002'],
         description: 'with',
         images: 'without',
+        filter_operator: 'and',
+        limit: 50
+      })
+    );
+  });
+
+  it('sends the OR combination when selected', async () => {
+    mockApi.fetchPrestashopData.mockResolvedValue({ success: true, data: { data_id: 'ps-1', summary: { total: 1 } } });
+
+    renderWithI18n(<UploadSection />, 'en');
+
+    const user = userEvent.setup();
+    await user.selectOptions(screen.getByLabelText('Description'), 'without');
+    await user.selectOptions(screen.getByLabelText('Images'), 'without');
+    await user.selectOptions(screen.getByLabelText('Combine filters'), 'or');
+    await user.click(screen.getByRole('button', { name: 'Fetch from PrestaShop' }));
+
+    await waitFor(() =>
+      expect(mockApi.fetchPrestashopData).toHaveBeenCalledWith({
+        eans: [],
+        references: [],
+        description: 'without',
+        images: 'without',
+        filter_operator: 'or',
         limit: 50
       })
     );
@@ -480,6 +505,7 @@ describe('UploadSection', () => {
       references: [],
       description: 'all',
       images: 'all',
+      filter_operator: 'and',
       limit: 50
     });
     expect(await screen.findByText('Imported 5 products from PrestaShop')).toBeInTheDocument();

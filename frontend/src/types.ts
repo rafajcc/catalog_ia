@@ -144,11 +144,16 @@ export interface UploadItem {
 // PrestaShop Webservice fetch (alternative data source to the CSV upload).
 export type PrestaShopPresenceFilter = 'with' | 'without' | 'all';
 
+// Combines the description and images criteria: 'and' requires every active
+// criterion to match, 'or' accepts products matching at least one.
+export type PrestaShopFilterOperator = 'and' | 'or';
+
 export interface PrestaShopFetchRequest {
   eans?: string[];
   references?: string[];
   description?: PrestaShopPresenceFilter;
   images?: PrestaShopPresenceFilter;
+  filter_operator?: PrestaShopFilterOperator;
   limit?: number;
 }
 

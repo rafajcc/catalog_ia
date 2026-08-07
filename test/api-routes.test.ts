@@ -549,6 +549,36 @@ describe('API routes', () => {
     expect(fakeClient.fetchProductsByReference).not.toHaveBeenCalled();
   });
 
+  it('combines the description and images filters with OR when requested', async () => {
+    const fakeClient = makeConsistencyFakeClient();
+    (fakeClient.fetchAllProducts as jest.Mock).mockResolvedValue([
+      { id: '5', name: 'Sin img', description: 'Larga', image_count: 0, combination_ids: ['11'], categories: [] },
+      { id: '6', name: 'Sin desc', image_count: 2, combination_ids: ['12'], categories: [] },
+      { id: '7', name: 'Completo', description: 'Larga', image_count: 2, combination_ids: ['13'], categories: [] }
+    ]);
+    (fakeClient.fetchCombinationsByIds as jest.Mock).mockResolvedValue([
+      { id_product_attribute: '11', id_product: '5', stock_available_id: '50' },
+      { id_product_attribute: '12', id_product: '6', stock_available_id: '51' },
+      { id_product_attribute: '13', id_product: '7', stock_available_id: '52' }
+    ]);
+    (fakeClient.fetchProductsById as jest.Mock).mockResolvedValue([
+      { id: '5', name: 'Sin img', description: 'Larga', image_count: 0, categories: [] },
+      { id: '6', name: 'Sin desc', image_count: 2, categories: [] },
+      { id: '7', name: 'Completo', description: 'Larga', image_count: 2, categories: [] }
+    ]);
+    const app = makeApp({ fakePrestashop: true, prestashopClient: fakeClient });
+    await configurePrestashop(app);
+
+    const res = await request(app)
+      .post('/api/fetch/prestashop')
+      .send({ eans: [], references: [], description: 'without', images: 'without', filter_operator: 'or' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.products).toHaveLength(2);
+    const names = res.body.data.products.map((product: { name: string }) => product.name).sort();
+    expect(names).toEqual(['Sin desc', 'Sin img']);
+  });
+
   it('imports products without combinations as product-level rows when no criteria are given', async () => {
     const fakeClient = makeConsistencyFakeClient();
     (fakeClient.fetchAllProducts as jest.Mock).mockResolvedValue([

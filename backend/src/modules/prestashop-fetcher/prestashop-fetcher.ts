@@ -20,11 +20,16 @@ import { PrestaShopClient } from '../prestashop-client/prestashop-client';
 
 export type PrestaShopPresenceFilter = 'with' | 'without' | 'all';
 
+// Combines the description and images criteria: AND requires every active
+// criterion to match, OR accepts products that match at least one.
+export type PrestaShopFilterOperator = 'and' | 'or';
+
 export interface PrestaShopFetchOptions {
   eans?: string[];
   references?: string[];
   description?: PrestaShopPresenceFilter;
   images?: PrestaShopPresenceFilter;
+  filter_operator?: PrestaShopFilterOperator;
   limit?: number;
 }
 
@@ -144,14 +149,21 @@ export class PrestaShopFetcher {
 
   private matches(product: PrestaShopProductInfo | undefined, options: PrestaShopFetchOptions): boolean {
     const description = product?.description?.trim() ?? '';
-    if (options.description === 'with' && !description) return false;
-    if (options.description === 'without' && description) return false;
-
     const imageCount = product?.image_count ?? 0;
-    if (options.images === 'with' && imageCount <= 0) return false;
-    if (options.images === 'without' && imageCount > 0) return false;
 
-    return true;
+    let descriptionMatches: boolean | undefined;
+    if (options.description === 'with') descriptionMatches = description.length > 0;
+    else if (options.description === 'without') descriptionMatches = description.length === 0;
+
+    let imagesMatches: boolean | undefined;
+    if (options.images === 'with') imagesMatches = imageCount > 0;
+    else if (options.images === 'without') imagesMatches = imageCount <= 0;
+
+    // A criterion set to 'all' contributes no constraint. The active criteria
+    // are combined with the selected operator (AND by default).
+    const active = [descriptionMatches, imagesMatches].filter((value): value is boolean => value !== undefined);
+    if (active.length === 0) return true;
+    return options.filter_operator === 'or' ? active.some(Boolean) : active.every(Boolean);
   }
 
   private toCombinationData(
